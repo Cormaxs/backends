@@ -1,0 +1,98 @@
+import mongoose from 'mongoose';
+import TicketEmitidoRepository from '../repositories/repo_tikets.js';
+import CajaRepository from '../repositories/repo_cajas.js';
+import { update_product_ventas_services } from './product_services.js';
+import { agregarTransaccionCaja } from './cajas/crud-cajas-services.js';
+
+function buildVentaId(puntoDeVenta) {
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = String(now.getMonth() + 1).padStart(2, '0');
+    const day = String(now.getDate()).padStart(2, '0');
+    const random = String(Math.floor(Math.random() * 10000)).padStart(4, '0');
+    return `VK${year}${month}${day}-${puntoDeVenta || '01'}-${random}`;
+}
+
+export async function createSaleTicket({
+    idEmpresa,
+    puntoDeVenta = '1',
+    ticketData = {},
+    cajaId = null,
+    stockUpdate = true,
+    registrarCaja = false,
+    source = 'MANUAL',
+    estadoFactura = 'Aprobada'
+}) {
+    if (!idEmpresa) {
+        throw new Error('idEmpresa es requerido para guardar el ticket.');
+    }
+
+    // --- Lógica Automática de Caja ---
+    let cajaAsociadaId = cajaId;
+    
+    // Si no se proporcionó cajaId, intentamos buscar una abierta automáticamente
+    if (!cajaAsociadaId) {
+        const openCaja = await CajaRepository.findOpenCaja(idEmpresa, puntoDeVenta);
+        if (openCaja) {
+            cajaAsociadaId = openCaja._id;
+            registrarCaja = true; // Si la encontramos automáticamente, activamos el registro de la transacción
+        }
+    } else {
+        // Si se proporcionó cajaId manualmente, aseguramos que registrarCaja esté activo
+        registrarCaja = true;
+    }
+
+    const cleanedTicketData = {
+        ...ticketData,
+        idEmpresa,
+        puntoDeVenta: String(puntoDeVenta || ticketData.puntoDeVenta || '1'),
+        cajaId: cajaAsociadaId, // Asignamos la caja encontrada o proporcionada
+        ventaId: ticketData.ventaId || buildVentaId(puntoDeVenta || ticketData.puntoDeVenta || '1'),
+        fechaHora: ticketData.fechaHora ? new Date(ticketData.fechaHora) : new Date(),
+        source,
+        estadoFactura,
+        items: Array.isArray(ticketData.items) ? ticketData.items : [],
+        totales: ticketData.totales || { subtotal: 0, descuento: 0, totalPagar: 0 },
+        pago: ticketData.pago || { metodo: 'efectivo', montoRecibido: 0, cambio: 0 },
+        cliente: ticketData.cliente || {},
+        observaciones: ticketData.observaciones || '',
+        cajero: ticketData.cajero || '',
+        transaccionId: ticketData.transaccionId || '',
+        sucursal: ticketData.sucursal || '',
+        pdfPath: ticketData.pdfPath || ''
+    };
+
+    if (!cleanedTicketData.numeroComprobanteInterno) {
+        const lastComprobanteInterno = await TicketEmitidoRepository.findLastComprobanteInterno(idEmpresa, cleanedTicketData.puntoDeVenta);
+        cleanedTicketData.numeroComprobanteInterno = Number(lastComprobanteInterno || 0) + 1;
+    }
+
+    // Ya no es necesario este bloque porque lo manejamos arriba
+    /*
+    if (cajaId && mongoose.Types.ObjectId.isValid(cajaId)) {
+        cleanedTicketData.cajaId = cajaId;
+    }
+    */
+
+    const validStockItems = cleanedTicketData.items.filter(item => item.idProduct || item._id);
+    if (stockUpdate && validStockItems.length > 0) {
+        await update_product_ventas_services({ items: validStockItems });
+    }
+
+    const savedTicket = await TicketEmitidoRepository.create(cleanedTicketData);
+
+    if (registrarCaja && savedTicket.cajaId && savedTicket.totales?.totalPagar > 0) {
+        try {
+            await agregarTransaccionCaja(savedTicket.cajaId, {
+                tipo: 'ingreso',
+                monto: savedTicket.totales.totalPagar,
+                descripcion: `Venta ${savedTicket.ventaId}`,
+                referencia: savedTicket._id
+            });
+        } catch (error) {
+            console.warn('No se pudo registrar la transacción en caja:', error.message || error);
+        }
+    }
+
+    return savedTicket;
+}
