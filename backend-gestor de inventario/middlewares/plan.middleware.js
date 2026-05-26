@@ -12,6 +12,11 @@ export function checkPlan(req, res, next) {
 
 export function checkUsageLimits(req, res, next) {
     try {
+        // MODO DESARROLLO/TESTEO: Desactivamos el límite temporalmente
+        // Simplemente dejamos pasar la petición al siguiente controlador
+        return next();
+
+        /* --- Lógica pausada temporalmente ---
         const userKey = (req.session && req.session.user && req.session.user.id) || req.ip || 'anon';
         const plan = res.locals.userPlan || PLANES.free;
         if (plan.ventas_mes && plan.ventas_mes > 0) {
@@ -24,6 +29,7 @@ export function checkUsageLimits(req, res, next) {
             usageCounters.set(monthKey, count + 1);
         }
         next();
+        -------------------------------------- */
     } catch (err) {
         next();
     }
