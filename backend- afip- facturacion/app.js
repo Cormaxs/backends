@@ -21,7 +21,7 @@ const app = express();
 // ============================================
 // CONEXIÓN A MONGODB rapida
 // ============================================
-const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://admin-db:proyectoFinal@45.236.128.209:27017/tp_final_nodo?authSource=tp_final_nodo';
+const MONGODB_URI = process.env.MONGODB_URI || process.env.URL_PRODUCTION;
 
 mongoose.connect(MONGODB_URI)
   .then(() => {
