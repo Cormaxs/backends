@@ -5,11 +5,11 @@ export default class AfipCredencialesService {
     async generarKeyCsr(datos, idPropietario) {
         try {
            
-            const response = await axios.post(API_BASE_URL +"afip/certificado/generar", idPropietario,  datos );
+            const response = await axios.post(API_BASE_URL +"afip/certificado/generar", { id: idPropietario, datos });
             return response.data;
         } catch (error) {
             console.error("Error al crear el usuario en el backend de AFIP:", error);
-            throw error.response.data;
+            throw error.response?.data || error;
         }
     }
 
@@ -17,11 +17,11 @@ export default class AfipCredencialesService {
     async guardarCrt(idUser, certificado) {
         try {
            
-            const response = await axios.post(API_BASE_URL +"afip/certificado/guardar",  idUser, certificado );
+            const response = await axios.post(API_BASE_URL +"afip/certificado/guardar", { id: idUser, certificado });
             return response.data;
         } catch (error) {
             console.error("Error al crear el usuario en el backend de AFIP:", error);
-            throw error.response.data;
+            throw error.response?.data || error;
         }
     }
 

@@ -18,16 +18,48 @@ class ProveedorRepository {
         if (!mongoose.Types.ObjectId.isValid(idEmpresa)) {
             throw new Error('ID de empresa inválido.');
         }
-        const { page = 1, limit = 20, activo } = options;
-        const query = { empresa: idEmpresa };
+        const { page = 1, limit = 20, activo, search, sortBy = 'razonSocial', order = 'asc' } = options;
+        const query = { empresa: new mongoose.Types.ObjectId(idEmpresa) };
+
         if (activo !== undefined) {
             query.activo = activo === 'true' || activo === true;
         }
+
+        if (search) {
+            const searchRegex = new RegExp(search, 'i');
+            query.$or = [
+                { razonSocial: searchRegex },
+                { nombreContacto: searchRegex },
+                { cuit: searchRegex },
+                { email: searchRegex },
+                { telefono: searchRegex },
+            ];
+        }
+
+        const sortOptions = {};
+        if (sortBy) {
+            sortOptions[sortBy] = order === 'asc' ? 1 : -1;
+        }
+
         const proveedores = await Proveedor.find(query)
+            .sort(sortOptions)
             .skip((Number(page) - 1) * Number(limit))
             .limit(Number(limit));
-        const total = await Proveedor.countDocuments(query);
-        return { proveedores, pagination: { page: Number(page), limit: Number(limit), total } };
+
+        const totalDocs = await Proveedor.countDocuments(query);
+        const totalPages = Math.ceil(totalDocs / Number(limit));
+        const hasNextPage = Number(page) < totalPages;
+        const hasPrevPage = Number(page) > 1;
+
+        return {
+            docs: proveedores,
+            totalDocs,
+            limit: Number(limit),
+            page: Number(page),
+            totalPages,
+            hasNextPage,
+            hasPrevPage,
+        };
     }
 
     async update(id, data) {

@@ -81,18 +81,9 @@ export async function createSaleTicket({
 
     const savedTicket = await TicketEmitidoRepository.create(cleanedTicketData);
 
-    if (registrarCaja && savedTicket.cajaId && savedTicket.totales?.totalPagar > 0) {
-        try {
-            await agregarTransaccionCaja(savedTicket.cajaId, {
-                tipo: 'ingreso',
-                monto: savedTicket.totales.totalPagar,
-                descripcion: `Venta ${savedTicket.ventaId}`,
-                referencia: savedTicket._id
-            });
-        } catch (error) {
-            console.warn('No se pudo registrar la transacción en caja:', error.message || error);
-        }
-    }
+    // NOTA: No agregamos la venta como transacción manual en caja.transacciones 
+    // para evitar duplicar montos en el resumen de caja, ya que el resumen 
+    // suma tanto las transacciones manuales como los tickets asociados por cajaId.
 
     return savedTicket;
 }

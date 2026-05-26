@@ -43,7 +43,16 @@ class CajaRepository{
 
         // Agregación para obtener ventas por método de pago
         const ventasPorMetodo = await Ticket.aggregate([
-            { $match: { cajaId: cajaObjectId, idEmpresa: companyId, estadoFactura: 'Aprobada' } },
+            { 
+                $match: { 
+                    $or: [
+                        { cajaId: cajaObjectId },
+                        { cajaId: cajaId } // Por si acaso se guardó como string
+                    ],
+                    idEmpresa: companyId, 
+                    estadoFactura: 'Aprobada' 
+                } 
+            },
             {
                 $group: {
                     _id: "$pago.metodo",
@@ -77,11 +86,22 @@ class CajaRepository{
         // Sumar todos los que no son efectivo
         const totalVentas = Object.values(resumenMetodos).reduce((sum, m) => sum + m.total, 0);
 
+        // Obtener el listado detallado de tickets/ventas para esta caja
+        const historialVentas = await Ticket.find({ 
+            $or: [
+                { cajaId: cajaObjectId },
+                { cajaId: cajaId }
+            ],
+            idEmpresa: companyId, 
+            estadoFactura: 'Aprobada' 
+        }).sort({ fechaHora: -1 }).lean();
+
         return {
             montoInicial: caja.montoInicial,
             ventas: {
                 total: totalVentas,
-                detallePorMetodo: resumenMetodos // Enviamos el objeto completo para que el front lo itere
+                detallePorMetodo: resumenMetodos, // Enviamos el objeto completo para que el front lo itere
+                historial: historialVentas // Lista de ventas con sus items
             },
             movimientosManuales: {
                 ingresos: ingresosManuales,
@@ -107,14 +127,23 @@ class CajaRepository{
             vendedor,
             fechaDesde,
             fechaHasta,
-            estado // <-- AÑADIDO: puede ser 'abierta', 'cerrada' o undefined/null para 'todas'
+            estado, // <-- AÑADIDO: puede ser 'abierta', 'cerrada' o undefined/null para 'todas'
+            search // <-- Nuevo campo de búsqueda general
         } = options;
     
         // 2. Construir la consulta base
-        const query = { empresa: empresaId };
+        const query = { empresa: new mongoose.Types.ObjectId(empresaId) };
     
         try {
             // 3. Añadir filtros a la consulta dinámicamente
+    
+            // --- Filtro de búsqueda general ---
+            if (search) {
+                query.$or = [
+                    { nombreCaja: new RegExp(search, 'i') },
+                    { observacionesCierre: new RegExp(search, 'i') }
+                ];
+            }
     
             // --- Filtro por Vendedor (búsqueda por nombre) ---
             if (vendedor) {
@@ -298,7 +327,7 @@ class CajaRepository{
                 monto,
                 descripcion,
                 fecha: new Date(), // Fecha actual para la transacción
-                ...(referencia && { referencia: mongoose.Types.ObjectId(referencia) }) // Agrega referencia si existe
+                ...(referencia && { referencia: new mongoose.Types.ObjectId(referencia) }) // Agrega referencia si existe
             };
 
             caja.transacciones.push(nuevaTransaccion);

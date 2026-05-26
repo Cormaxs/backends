@@ -252,30 +252,74 @@ class ProductRepository {
         }
     }
 
-    async get_category_empresa(idEmpresa) {
+    async get_category_empresa(idEmpresa, options = {}) {
         if (!idEmpresa) {
             throw new Error("El ID de la empresa es requerido.");
         }
+        const { page = 1, limit = 10, sortBy = 'nombre', order = 'asc', search } = options;
+
+        const query = { empresa: idEmpresa };
+        if (search) {
+            query.nombre = new RegExp(search, 'i');
+        }
+
         try {
-            const categories = await Categoria.find({ empresa: idEmpresa })
-                .sort({ nombre: 1 })
+            const totalCategories = await Categoria.countDocuments(query);
+            const categoriesQuery = Categoria.find(query)
+                .sort({ [sortBy]: order === 'asc' ? 1 : -1 })
+                .skip((page - 1) * limit)
+                .limit(limit)
                 .lean();
-            return categories;
+
+            const categories = await categoriesQuery.exec();
+
+            const pagination = {
+                totalItems: totalCategories,
+                currentPage: parseInt(page),
+                limit: parseInt(limit),
+                totalPages: Math.ceil(totalCategories / limit),
+                hasNextPage: (page * limit) < totalCategories,
+                hasPrevPage: page > 1,
+            };
+
+            return { categories, pagination };
         } catch (error) {
             console.error("Error al obtener las categorías de la empresa:", error);
             throw new Error("No se pudieron obtener las categorías en este momento.");
         }
     }
 
-    async get_marca_empresa(idEmpresa) {
+    async get_marca_empresa(idEmpresa, options = {}) {
         if (!idEmpresa) {
             throw new Error("El ID de la empresa es requerido.");
         }
+        const { page = 1, limit = 10, sortBy = 'nombre', order = 'asc', search } = options;
+
+        const query = { empresa: idEmpresa };
+        if (search) {
+            query.nombre = new RegExp(search, 'i');
+        }
+
         try {
-            const marcas = await Marca.find({ empresa: idEmpresa })
-                .sort({ nombre: 1 })
+            const totalMarcas = await Marca.countDocuments(query);
+            const marcasQuery = Marca.find(query)
+                .sort({ [sortBy]: order === 'asc' ? 1 : -1 })
+                .skip((page - 1) * limit)
+                .limit(limit)
                 .lean();
-            return marcas;
+
+            const marcas = await marcasQuery.exec();
+
+            const pagination = {
+                totalItems: totalMarcas,
+                currentPage: parseInt(page),
+                limit: parseInt(limit),
+                totalPages: Math.ceil(totalMarcas / limit),
+                hasNextPage: (page * limit) < totalMarcas,
+                hasPrevPage: page > 1,
+            };
+
+            return { marcas, pagination };
         } catch (error) {
             console.error("Error al obtener las marcas de la empresa:", error);
             throw new Error("No se pudieron obtener las marcas en este momento.");

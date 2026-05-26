@@ -71,7 +71,7 @@ async editarCompany(req, res) {
     async listarTodosLosNumeros(req, res){
         try{
             const {idUser} = req.params;
-            const resultado = await afipUsers.createUlistarTodosLosNumerossuario(idUser)
+            const resultado = await afipUsers.listarPuntosDeVenta(idUser)
             res.send(resultado);
         }catch(error){
             console.error("Error en listarTodosLosNumeros:", error);

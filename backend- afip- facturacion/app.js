@@ -21,12 +21,12 @@ const app = express();
 // ============================================
 // CONEXIÓN A MONGODB rapida
 // ============================================
-const MONGODB_URI = process.env.MONGODB_URI || process.env.URL_PRODUCTION;
+const MONGODB_URI = process.env.MONGODB_URI_PRODUCTION || process.env.MONGODB_URI;
 
 mongoose.connect(MONGODB_URI)
   .then(() => {
     console.log('✅ Conectado a MongoDB exitosamente');
-    console.log('📁 Base de datos: tp_final_nodo');
+    console.log('📁 Base de datos: Facstock-produccion');
   })
   .catch((error) => {
     console.error('❌ Error conectando a MongoDB:', error.message);

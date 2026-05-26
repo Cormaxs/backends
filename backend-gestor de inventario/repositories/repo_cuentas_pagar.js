@@ -21,17 +21,47 @@ class CuentaPorPagarRepository {
         if (!mongoose.Types.ObjectId.isValid(idEmpresa)) {
             throw new Error('ID de empresa inválido.');
         }
-        const { page = 1, limit = 20, estado } = options;
-        const query = { empresa: idEmpresa };
+        const { page = 1, limit = 20, estado, search, sortBy = 'fechaEmision', order = 'desc' } = options;
+        const query = { empresa: new mongoose.Types.ObjectId(idEmpresa) };
+
         if (estado) {
             query.estado = estado;
         }
+
+        if (search) {
+            const searchRegex = new RegExp(search, 'i');
+            query.$or = [
+                { descripcion: searchRegex },
+                // Para buscar por nombre de proveedor, se necesitaría un $lookup en una pipeline de agregación.
+                // Por ahora, la búsqueda se limita a campos directos de CuentaPorPagar.
+            ];
+        }
+
+        const sortOptions = {};
+        if (sortBy) {
+            sortOptions[sortBy] = order === 'asc' ? 1 : -1;
+        }
+
         const cuentas = await CuentaPorPagar.find(query)
             .populate('proveedor')
+            .sort(sortOptions)
             .skip((Number(page) - 1) * Number(limit))
             .limit(Number(limit));
-        const total = await CuentaPorPagar.countDocuments(query);
-        return { cuentas, pagination: { page: Number(page), limit: Number(limit), total } };
+
+        const totalDocs = await CuentaPorPagar.countDocuments(query);
+        const totalPages = Math.ceil(totalDocs / Number(limit));
+        const hasNextPage = Number(page) < totalPages;
+        const hasPrevPage = Number(page) > 1;
+
+        return {
+            docs: cuentas,
+            totalDocs,
+            limit: Number(limit),
+            page: Number(page),
+            totalPages,
+            hasNextPage,
+            hasPrevPage,
+        };
     }
 
     async findByProveedor(idProveedor, options = {}) {

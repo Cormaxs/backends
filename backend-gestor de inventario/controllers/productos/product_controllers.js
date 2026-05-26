@@ -165,19 +165,20 @@ export async function get_all_products_company_controllers(req, res) {
 
 export async function get_all_category_company_controllers(req, res) {
     try {
-        // Cambiamos 'id' a 'company_id' para mayor claridad, asumiendo que tu ruta es algo como /products/company/:company_id
-        const { idEmpresa } = req.params; 
-        const categorys = await get_all_category_company_services( idEmpresa, req.query);
+        const { idEmpresa } = req.params;
+        const { page, limit, sortBy, order, search } = req.query;
 
-        if (!categorys || categorys.length === 0) {
-            return res.status(204).json({ message: "No hay categorias disponibles para esta empresa." });
+        const options = { page, limit, sortBy, order, search };
+        const categories = await get_all_category_company_services(idEmpresa, options);
+
+        if (!categories || categories.categories.length === 0) {
+            return res.status(204).json({ message: "No hay categorías disponibles para esta empresa." });
         }
 
-        return res.status(200).json(categorys);
+        return res.status(200).json(categories);
     } catch (error) {
-        console.error("Error en get_all_products_company (controlador):", error.message);
-        // Puedes ser más específico en el error si 'error' tiene un código/mensaje de error más detallado
-        return res.status(500).json({ error: "Error interno del servidor al obtener los productos de la empresa." });
+        console.error("Error en get_all_category_company_controllers (controlador):", error.message);
+        return res.status(500).json({ error: "Error interno del servidor al obtener las categorías de la empresa." });
     }
 }
 
@@ -185,19 +186,20 @@ export async function get_all_category_company_controllers(req, res) {
 
 export async function get_all_marca_company_controllers(req, res) {
     try {
-        // Cambiamos 'id' a 'company_id' para mayor claridad, asumiendo que tu ruta es algo como /products/company/:company_id
-        const { idEmpresa } = req.params; 
-        const categorys = await get_all_marca_company_services( idEmpresa, req.query);
+        const { idEmpresa } = req.params;
+        const { page, limit, sortBy, order, search } = req.query;
 
-        if (!categorys || categorys.length === 0) {
-            return res.status(204).json({ message: "No hay categorias disponibles para esta empresa." });
+        const options = { page, limit, sortBy, order, search };
+        const marcas = await get_all_marca_company_services(idEmpresa, options);
+
+        if (!marcas || marcas.marcas.length === 0) {
+            return res.status(204).json({ message: "No hay marcas disponibles para esta empresa." });
         }
 
-        return res.status(200).json(categorys);
+        return res.status(200).json(marcas);
     } catch (error) {
-        console.error("Error en get_all_products_company (controlador):", error.message);
-        // Puedes ser más específico en el error si 'error' tiene un código/mensaje de error más detallado
-        return res.status(500).json({ error: "Error interno del servidor al obtener los productos de la empresa." });
+        console.error("Error en get_all_marca_company_controllers (controlador):", error.message);
+        return res.status(500).json({ error: "Error interno del servidor al obtener las marcas de la empresa." });
     }
 }
 

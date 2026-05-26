@@ -26,19 +26,36 @@ export async function getClientById_service(id) {
 /**
  * Obtiene todos los clientes de una empresa con filtros opcionales
  */
-export async function getClientsByEmpresa_service(idEmpresa, filters = {}) {
+export async function getClientsByEmpresa_service(idEmpresa, options = {}) {
     try {
+        const { page = 1, limit = 10, sortBy = 'razonSocial', order = 'asc', search } = options;
+
         const query = { owner: idEmpresa, activo: true };
         
-        if (filters.search) {
+        if (search) {
             query.$or = [
-                { razonSocial: { $regex: filters.search, $options: 'i' } },
-                { numeroDocumento: { $regex: filters.search, $options: 'i' } },
-                { email: { $regex: filters.search, $options: 'i' } }
+                { razonSocial: { $regex: search, $options: 'i' } },
+                { numeroDocumento: { $regex: search, $options: 'i' } },
+                { email: { $regex: search, $options: 'i' } }
             ];
         }
 
-        return await Client.find(query).sort({ razonSocial: 1 });
+        const totalClients = await Client.countDocuments(query);
+        const clients = await Client.find(query)
+            .sort({ [sortBy]: order === 'asc' ? 1 : -1 })
+            .skip((page - 1) * limit)
+            .limit(limit);
+
+        const pagination = {
+            totalItems: totalClients,
+            currentPage: parseInt(page),
+            limit: parseInt(limit),
+            totalPages: Math.ceil(totalClients / limit),
+            hasNextPage: (page * limit) < totalClients,
+            hasPrevPage: page > 1,
+        };
+
+        return { clients, pagination };
     } catch (error) {
         throw error;
     }

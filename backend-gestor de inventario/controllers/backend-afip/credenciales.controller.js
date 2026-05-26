@@ -9,15 +9,18 @@ export default class CreateCredencialesControllers{
     async generarKeyCsr(req, res) {
         
         try{
-            //pasar todos los datos completos al otro backend
-            const  id = req.body;
-            const datos = req.body;
+            // Extraer id y datos del cuerpo de la petición
+            const { id, datos } = req.body;
+            
+            if (!id || !datos) {
+                return res.status(400).json({ message: "Faltan parámetros requeridos (id o datos)" });
+            }
+
             const resultado = await afipCredencialesService.generarKeyCsr(datos, id);
-            //guardar el _id devuelto para tener los datos fiscales, guardar en propietario la referencia l id
             res.json(resultado);
         }catch(error){
-            console.error(error);
-            res.status(500).json({message: "Error al generar las credenciales"});
+            console.error("Error en generarKeyCsr:", error);
+            res.status(500).json({message: error.message || "Error al generar las credenciales"});
         }
     }
 
@@ -25,15 +28,17 @@ export default class CreateCredencialesControllers{
     async guardarCRT(req, res) {
         
         try{
-            //pasar todos los datos completos al otro backend
-            const  id = req.body;
-            const certificado = req.body;
+            const { id, certificado } = req.body;
+
+            if (!id || !certificado) {
+                return res.status(400).json({ message: "Faltan parámetros requeridos (id o certificado)" });
+            }
+
             const resultado = await afipCredencialesService.guardarCrt(id, certificado);
-            //guardar el _id devuelto para tener los datos fiscales, guardar en propietario la referencia l id
             res.json(resultado);
         }catch(error){
-            console.error(error);
-            res.status(500).json({message: "Error al guardar el certificado"});
+            console.error("Error en guardarCRT:", error);
+            res.status(500).json({message: error.message || "Error al guardar el certificado"});
         }
     }
 

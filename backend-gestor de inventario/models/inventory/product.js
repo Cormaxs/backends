@@ -17,9 +17,9 @@ const ProductSchema = new mongoose.Schema({
     codigoInterno: {
         type: String,
         trim: true,
-        // 'unique: false' aquí en la definición del campo no tiene efecto,
-        // la unicidad se define solo en el índice.
-        required: [false, 'El código interno del producto es obligatorio.']
+        // Eliminamos el required para evitar que se guarde como null/vacío si no viene
+        required: false,
+        default: undefined
     },
     codigoBarra: {
         type: Number,
@@ -130,12 +130,27 @@ const ProductSchema = new mongoose.Schema({
     }
 }, { timestamps: true });
 
-// --- ¡ADVERTENCIA Y RECOMENDACIÓN CRÍTICA PARA EL ÍNDICE! ---
-// Si 'codigoInterno' puede ser '0' para múltiples productos,
-// y 'owner' en el índice es realmente 'empresa' en el documento,
-// DEBES cambiar 'unique: true' a 'unique: false' y 'owner' a 'empresa' aquí.
-// De lo contrario, solo un producto con 'codigoInterno: 0' por empresa podrá ser insertado.
-ProductSchema.index({ codigoInterno: 1, empresa: 1 }, { unique: false }); // Manteniendo tu versión, pero con la advertencia.
+// Pre-save hook para limpiar campos vacíos que pueden entrar en conflicto con índices únicos
+ProductSchema.pre('save', function(next) {
+    if (this.codigoInterno === "" || this.codigoInterno === null) {
+        this.codigoInterno = undefined;
+    }
+    if (this.codigoBarra === 0 || this.codigoBarra === null) {
+        this.codigoBarra = undefined;
+    }
+    next();
+});
+
+// Índice compuesto para asegurar que el código interno sea único por empresa,
+// pero permitiendo múltiples productos con codigoInterno: null usando un filtro parcial.
+ProductSchema.index(
+    { codigoInterno: 1, empresa: 1 },
+    { 
+        unique: true, 
+        name: "idx_codigoInterno_empresa_unique",
+        partialFilterExpression: { codigoInterno: { $type: "string" } } 
+    }
+);
 /*usar en db shell mongo compass para poder buscar todo en 1
 db.products.createIndex({
     producto: "text",

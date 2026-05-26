@@ -1,18 +1,23 @@
 import ProductRepository from '../repositories/repo_product.js';
 
 export async function add_product_services(productData) {
-    /*
-    const marca = await ProductRepository.findOrCreateMarcaId(productData.marca, productData.empresa);
-    const categoria = await ProductRepository.findOrCreateCategoriaId(productData.marca, productData.empresa);
+    // Limpiar campos vacíos para evitar conflictos con índices únicos (como codigoInterno: null)
+    if (!productData.codigoInterno || productData.codigoInterno.trim() === "") {
+        delete productData.codigoInterno;
+    }
+    if (!productData.codigoBarra) {
+        delete productData.codigoBarra;
+    }
 
+    if (productData.marca) {
+        const marca = await ProductRepository.findOrCreateMarcaId(productData.marca, productData.empresa);
+        productData.marca = marca;
+    }
+    if (productData.categoria) {
+        const categoria = await ProductRepository.findOrCreateCategoriaId(productData.categoria, productData.empresa);
+        productData.categoria = categoria;
+    }
 
-    const finalProductData = {
-        ...productData,
-        marca: marca,
-        categoria: categoria,
-    };
-
-    */
     const creado = await ProductRepository.addProduct(productData);
     if (creado) {
         return creado;
@@ -80,18 +85,14 @@ export async function get_all_products_company_services( company_id, page, limit
         return products;
 }
 
-export async function get_all_category_company_services( idEmpresa, query ){
-    
-    const {idPuntoVenta} = query;
-        const products = await ProductRepository.get_category_empresa( idEmpresa, idPuntoVenta );
-      
-        return products;
+export async function get_all_category_company_services(idEmpresa, options = {}) {
+    const categories = await ProductRepository.get_category_empresa(idEmpresa, options);
+    return categories;
 }
 
-export async function get_all_marca_company_services( idEmpresa, query ){
-    const {idPuntoVenta} = query;
-        const products = await ProductRepository.get_marca_empresa( idEmpresa, idPuntoVenta );
-        return products;
+export async function get_all_marca_company_services(idEmpresa, options = {}) {
+    const marcas = await ProductRepository.get_marca_empresa(idEmpresa, options);
+    return marcas;
 }
 
 export async function deleted_marca_company_services(marcaNombre, idEmpresa) {

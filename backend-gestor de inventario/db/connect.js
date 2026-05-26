@@ -2,10 +2,10 @@ import mongoose from 'mongoose';
 
 const connectDB = async () => {
     try {
-        const mongoUri = process.env.MONGO_URI || process.env.PRODUCCION;
+        const mongoUri = process.env.MONGO_URI_PRODUCCION || process.env.MONGO_URI;
 
         if (!mongoUri) {
-            console.error('Error: MONGO_URI no está definida en las variables de entorno.');
+            console.error('Error: MONGO_URI_PRODUCCION no está definida en las variables de entorno.');
             process.exit(1); // Sale de la aplicación si no hay URI
         }
 
@@ -15,6 +15,7 @@ const connectDB = async () => {
         // Puedes añadir más configuraciones de conexión aquí si las necesitas
         // Por ejemplo, para manejar eventos de conexión/desconexión
         mongoose.connection.on('connected', () => {
+            console.log('✅ Conectado a MongoDB (Producción) exitosamente');
         });
 
         mongoose.connection.on('error', (err) => {

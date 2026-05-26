@@ -1,10 +1,11 @@
 {
   "name": "libreria-afip-mia",
   "version": "1.0.0",
+  "type": "module",
   "main": "app.js",
   "scripts": {
-    "start": "node src/app.js",
-    "dev": "nodemon -L --ext js,json,xml src/app.js"
+    "start": "node app.js",
+    "dev": "nodemon -L --ext js,json,xml app.js"
   },
   "keywords": [],
   "author": "",

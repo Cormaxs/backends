@@ -20,16 +20,47 @@ class UserRepository {
     }
 
     async findByEmpresa(empresaId, options = {}) {
-        const { page = 1, limit = 20, activo } = options;
+        const { page = 1, limit = 20, activo, search, sortBy = 'username', order = 'asc' } = options;
         const query = { empresa: empresaId };
+
         if (activo !== undefined) {
             query.activo = activo === 'true' || activo === true;
         }
+
+        if (search) {
+            const searchRegex = new RegExp(search, 'i');
+            query.$or = [
+                { username: searchRegex },
+                { email: searchRegex },
+                { nombre: searchRegex },
+                { apellido: searchRegex },
+            ];
+        }
+
+        const sortOptions = {};
+        if (sortBy) {
+            sortOptions[sortBy] = order === 'asc' ? 1 : -1;
+        }
+
         const vendors = await User.find(query)
+            .sort(sortOptions)
             .skip((Number(page) - 1) * Number(limit))
             .limit(Number(limit));
-        const total = await User.countDocuments(query);
-        return { vendors, pagination: { page: Number(page), limit: Number(limit), total } };
+
+        const totalDocs = await User.countDocuments(query);
+        const totalPages = Math.ceil(totalDocs / Number(limit));
+        const hasNextPage = Number(page) < totalPages;
+        const hasPrevPage = Number(page) > 1;
+
+        return {
+            docs: vendors,
+            totalDocs,
+            limit: Number(limit),
+            page: Number(page),
+            totalPages,
+            hasNextPage,
+            hasPrevPage,
+        };
     }
 
     // Actualiza un usuario
