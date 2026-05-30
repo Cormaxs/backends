@@ -133,3 +133,7 @@ export async function createSinAfip(datos, idUsuario, idEmpresa, datosEmpresa) {
 export async function getTiketsCompanyServices(idEmpresa, options) {
     return TicketEmitidoRepository.findByEmpresaId(idEmpresa, options);
 }
+
+export async function getTicketByIdService(idTicket) {
+    return TicketEmitidoRepository.findById(idTicket);
+}

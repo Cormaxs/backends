@@ -105,7 +105,8 @@ class CajaRepository{
             },
             movimientosManuales: {
                 ingresos: ingresosManuales,
-                egresos: egresosManuales
+                egresos: egresosManuales,
+                detalle: caja.transacciones // Agregamos el detalle de transacciones manuales
             },
             totales: {
                 ingresosTotales: caja.montoInicial + totalVentas + ingresosManuales,
@@ -192,45 +193,29 @@ class CajaRepository{
     
             // 4. Ejecutar la consulta con paginación, orden y 'populate'
             const totalDocs = await Caja.countDocuments(query);
+            const totalPages = Math.ceil(totalDocs / limit);
             
             let cajasQuery = Caja.find(query)
                 .populate('puntoDeVenta', 'nombre')
                 .populate('vendedorAsignado', 'nombre')
+                .sort({ [sortBy || 'fechaApertura']: order === 'asc' ? 1 : -1 })
                 .skip((page - 1) * limit)
                 .limit(parseInt(limit));
-    
-            // Aplicar ordenamiento
-            const sortOptions = {};
-            if (sortBy) {
-                sortOptions[sortBy] = order === 'desc' ? -1 : 1;
-            } else {
-                sortOptions['fechaApertura'] = -1;
-            }
-            cajasQuery = cajasQuery.sort(sortOptions);
-    
-            const cajas = await cajasQuery.exec();
-    
-            // 5. Calcular y devolver la paginación junto con los resultados
-            const totalPages = Math.ceil(totalDocs / limit);
-            const currentPage = parseInt(page);
-    
-            return {
-                cajas,
-                pagination: {
-                    totalDocs,
-                    totalPages,
-                    currentPage,
-                    limit: parseInt(limit),
-                    hasNextPage: currentPage < totalPages,
-                    hasPrevPage: currentPage > 1,
-                    nextPage: currentPage < totalPages ? currentPage + 1 : null,
-                    prevPage: currentPage > 1 ? currentPage - 1 : null,
-                }
+
+            const cajas = await cajasQuery.lean().exec();
+
+            return { 
+                cajas, 
+                pagination: { 
+                    totalDocs, 
+                    totalPages, 
+                    currentPage: parseInt(page),
+                    limit: parseInt(limit)
+                } 
             };
-    
         } catch (error) {
-            console.error(`Error en CajaRepository.findByIdEmpresa (${empresaId}):`, error.message);
-            throw new Error(`No se pudieron obtener las cajas por empresa: ${error.message}`);
+            console.error("Error en findByIdEmpresa:", error);
+            throw error;
         }
     }
 

@@ -15,6 +15,7 @@ import Caja from './accounting/RegistroDeCaja.js';
 import CuentaPorPagar from './accounting/CuentaPorPagar.js';
 import PagoProveedor from './accounting/PagoProveedor.js';
 import Ticket from './sales/tikets-emitidos.js';
+import NotaPedido from './sales/NotaPedido.js';
 import Marca from './inventory/Marca.js';
 import Categoria from './inventory/Categoria.js';
 export {
@@ -30,6 +31,7 @@ export {
     CuentaPorPagar,
     PagoProveedor,
     Ticket,
+    NotaPedido,
     Marca,
     Categoria
 };

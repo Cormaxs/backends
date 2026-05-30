@@ -14,10 +14,10 @@
 - ✔️ Autorización de comprobantes (CAE)
 
 ### 🤝 Relación con Otros Proyectos
-- **Consumidor**: ← backend-gestor de inventario (cuando necesita facturación)
-- **Consumidor**: ← front-facstock (indirectamente, vía backend inventario)
-- **Proveedor EXTERNO**: → AFIP (SOAP services)
-- **Base de datos**: MongoDB (compartida)
+- **Consumidor**: ← backend-gestor de inventario (Principal cliente)
+- **Consumidor Indirecto**: ← front-facstock (vía backend inventario)
+- **Base de datos**: MongoDB (Compartida)
+- **Puerto Sugerido**: `3005` (Para coincidir con la configuración del orquestador)
 
 ---
 
@@ -27,19 +27,8 @@
 |-----------|---------|----------|
 | **Node.js** | 16+ | Runtime |
 | **Express** | 5.2.1 | Web framework |
-| **MongoDB** | - | Database |
-| **Mongoose** | 9.2.1 | ODM |
-| **soap** | 1.7.1 | SOAP client para AFIP |
-| **node-forge** | 1.3.3 | Cryptografía (firma digital) |
-| **xml2js** | 0.6.2 | Parser XML |
-| **xmlbuilder** | 15.1.1 | Builder XML |
-| **pdfmake** | 0.3.5 | Generación PDF |
-| **pdfkit** | 0.17.2 | Manipulación PDF |
-| **qrcode** | 1.5.4 | Generación QR |
-| **decimal.js** | 10.6.0 | Aritmética decimal (importante para montos) |
-| **axios** | 1.13.5 | HTTP client |
-| **cors** | 2.8.6 | CORS middleware |
-| **dotenv** | 17.3.1 | Configuración ambiente |
+| **soap** | 1.7.1 | Cliente SOAP para AFIP |
+| **node-forge** | 1.3.3 | Firma digital |
 
 ---
 
@@ -139,8 +128,8 @@ backend-afip-facturacion/
 
 ### Prerequisitos
 - **Node.js**: 16 o superior
-- **MongoDB**: Local o remota (Atlas)
-- **Acceso a AFIP**: Certificado Digital (archivo .p12 o .pfx)
+- **MongoDB**: Instancia accesible
+- **Certificados**: Archivos `.crt` y `.key` gestionados por el sistema
 
 ### Pasos de Instalación
 
@@ -153,31 +142,27 @@ npm install
 
 # 3. Configurar variables de ambiente
 cp .env.example .env
-# Editar .env con valores correspondientes
+# Editar .env (Puerto 3005 recomendado)
 
 # 4. Levantar servidor
 npm start
-# Servidor escuchando en http://localhost:3001
+# Servidor escuchando en http://localhost:3005
 ```
 
-### Archivo `.env` Necesario
+### Archivo `.env` Recomendado
 
 ```bash
 # Conexión MongoDB
-MONGODB_URI=mongodb+srv://usuario:contraseña@cluster.mongodb.net/facstock
+MONGODB_URI=mongodb+srv://...
 
 # Puerto del servidor
-PUERTO=3001
+PORT=3005
 
 # Ambiente AFIP (homo=testing, prod=producción)
 AFIP_ENVIRONMENT=homo
 
-# JWT para autenticación interna
-JWT_SECRET=tu_secret_key_muy_seguro
-
-# URLs de servicios AFIP (usualmente autodetectadas)
-AFIP_WSAA_URL=https://wsaa.afip.gov.ar/ws/services/LoginCms
-AFIP_WSFEV1_URL=https://wswhomo.afip.gov.ar/ws/services/wsfev1
+# Path para certificados y PDFs
+STORAGE_PATH=./storage
 ```
 
 ---

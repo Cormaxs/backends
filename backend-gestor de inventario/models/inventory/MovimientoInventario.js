@@ -38,7 +38,7 @@ const movimientoInventarioSchema = new mongoose.Schema({
     },
     usuarioResponsable: { // Usuario que realizó el movimiento
         type: mongoose.Schema.Types.ObjectId,
-        ref: 'User', // Podría ser un 'User' o un 'Vendedor' dependiendo de quién hace el ajuste
+        ref: 'Users-logins', // Podría ser un 'User' o un 'Vendedor' dependiendo de quién hace el ajuste
         required: [true, 'El usuario responsable es obligatorio.']
     },
     // Si manejas múltiples almacenes o depósitos

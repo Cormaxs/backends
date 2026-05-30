@@ -232,9 +232,75 @@ class ProductRepository {
         return await Product.findByIdAndDelete(id);
     }
 
+    async returnProductStock(productsToReturn) {
+        try {
+            const updatedProducts = [];
+            for (const productInfo of productsToReturn) {
+                const { id, cantidadADevolver } = productInfo;
+                const updatedProduct = await Product.findByIdAndUpdate(
+                    id,
+                    { $inc: { stock_disponible: cantidadADevolver } },
+                    { new: true, runValidators: true }
+                );
+                if (!updatedProduct) {
+                    throw new Error(`Producto con ID ${id} no encontrado para devolución de stock.`);
+                }
+                updatedProducts.push(updatedProduct);
+            }
+            return updatedProducts;
+        } catch (error) {
+            console.error('Error al devolver stock:', error);
+            throw error;
+        }
+    }
+
     async deleteProductAll(idEmpresa) {
         const resultado = await Product.deleteMany({ empresa: idEmpresa });
         return resultado;
+    }
+
+    async reserveProductStock(productsToReserve) {
+        try {
+            const updatedProducts = [];
+            for (const productInfo of productsToReserve) {
+                const { id, cantidadAReservar } = productInfo;
+                const updatedProduct = await Product.findByIdAndUpdate(
+                    id,
+                    { $inc: { stock_reservado: cantidadAReservar } },
+                    { new: true, runValidators: true }
+                );
+                if (!updatedProduct) {
+                    throw new Error(`Producto con ID ${id} no encontrado para reserva.`);
+                }
+                updatedProducts.push(updatedProduct);
+            }
+            return updatedProducts;
+        } catch (error) {
+            console.error('Error al reservar stock:', error);
+            throw error;
+        }
+    }
+
+    async releaseProductStock(productsToRelease) {
+        try {
+            const updatedProducts = [];
+            for (const productInfo of productsToRelease) {
+                const { id, cantidadALiberar } = productInfo;
+                const updatedProduct = await Product.findByIdAndUpdate(
+                    id,
+                    { $inc: { stock_reservado: -cantidadALiberar } },
+                    { new: true, runValidators: true }
+                );
+                if (!updatedProduct) {
+                    throw new Error(`Producto con ID ${id} no encontrado para liberar reserva.`);
+                }
+                updatedProducts.push(updatedProduct);
+            }
+            return updatedProducts;
+        } catch (error) {
+            console.error('Error al liberar stock reservado:', error);
+            throw error;
+        }
     }
 
     //busca por codigo de barras

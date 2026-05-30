@@ -101,6 +101,11 @@ const ProductSchema = new mongoose.Schema({
         min: [0, 'El stock no puede ser negativo.'],
         default: 0
     },
+    stock_reservado: {
+        type: Number,
+        min: [0, 'El stock reservado no puede ser negativo.'],
+        default: 0
+    },
     stockMinimo: {
         type: Number,
         min: [0, 'El stock mínimo no puede ser negativo.'],

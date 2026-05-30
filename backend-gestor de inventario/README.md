@@ -18,9 +18,9 @@
 
 ### 🤝 Relación con Otros Proyectos
 - **Consumidor**: ← front-facstock (todas las peticiones del frontend)
-- **Consumidor de**: → backend-afip-facturacion (cuando se necesita facturación electrónica)
+- **Consumidor de**: → backend-afip-facturacion (vía `services/backend-afip/`)
 - **Proveedor de datos**: → backend-afip-facturacion (datos de empresa, tokens)
-- **Base de datos**: MongoDB (compartida)
+- **Base de datos**: MongoDB (compartida con el backend AFIP)
 
 ---
 
@@ -32,15 +32,9 @@
 | **Express** | 5.x | Web framework |
 | **MongoDB** | - | Database |
 | **Mongoose** | 8.15.1 | ODM |
+| **Axios** | 1.13.6 | Comunicación con Backend AFIP |
 | **bcrypt** | 6.0.0 | Hash de contraseñas |
 | **jsonwebtoken** | 9.0.2 | JWT authentication |
-| **express-validator** | 7.2.1 | Validación de input |
-| **multer** | 2.0.1 | File uploads |
-| **xlsx** | 0.18.5 | Excel parsing |
-| **csv-parser** | 3.2.0 | CSV parsing |
-| **axios** | 1.13.6 | HTTP client |
-| **cors** | 2.8.5 | CORS middleware |
-| **dotenv** | - | Configuración ambiente |
 
 ---
 
@@ -48,86 +42,15 @@
 
 ```
 backend-gestor de inventario/
-├── app.js                    # Entry point
+├── app.js                    # Entry point (Puerto 3010)
 ├── package.json
 ├── .env                      # Variables de ambiente
 │
-├── Documentacion/            # 📚 Documentación existente
+├── Documentacion/            # 📚 Documentación interna
 │   ├── auth.md
 │   ├── facturas.md
 │   ├── productos.md
-│   └── db/
-│
-├── controllers/              # Lógica de request/response
-│   ├── auth/
-│   ├── backend-afip/
-│   ├── company/
-│   ├── facturas/
-│   ├── menu/
-│   ├── point-sales/
-│   ├── productos/
-│   ├── registro-cajas/
-│   ├── archivos/
-│   └── vendedor/
-│
-├── models/                   # Esquemas MongoDB
-│   ├── core/
-│   │   ├── datos-empresa.js
-│   │   ├── propietario.js
-│   │   └── puntos-de-ventas.js
-│   ├── inventory/
-│   │   ├── product.js
-│   │   ├── Marca.js
-│   │   ├── Categoria.js
-│   │   └── MovimientoInventario.js
-│   ├── sales/
-│   │   ├── client.js
-│   │   ├── vendedor.js
-│   │   └── tikets-emitidos.js
-│   └── accounting/
-│       └── RegistroDeCaja.js
-│
-├── repositories/             # Data access layer
-│   ├── repo_auth.js
-│   ├── repo_product.js
-│   ├── repo_company.js
-│   ├── repo_facturas.js
-│   ├── repo_point_sales.js
-│   ├── repo_cajas.js
-│   ├── repo_vendedor.js
-│   ├── repo_tikets.js
-│   └── repo_up_masiva_db.js
-│
-├── services/                 # Lógica de negocio
-│   ├── auth_services.js
-│   ├── product_services.js
-│   ├── company_services.js
-│   ├── point_sales_services.js
-│   ├── vendedor_services.js
-│   ├── backend-afip/
-│   ├── cajas/
-│   ├── facturas-sin-afip/
-│   └── up-masivo-db/
-│
-├── routes/                   # Definición de rutas
-│   ├── api/
-│   └── ...
-│
-├── middlewares/
-│   ├── auth.js
-│   ├── auth_middlewares.js
-│   └── error_handler.js
-│
-├── utils/
-│   ├── bcrypt.js
-│   └── ...
-│
-└── raiz-users/               # Almacenamiento por usuario
-    ├── 689a697d9061e531213a784a/
-    └── ...
-
-└── db/
-    └── connect.js            # Conexión MongoDB
+│   └── arquitectura-comunicacion.md (Nuevo)
 ```
 
 ---
@@ -137,7 +60,7 @@ backend-gestor de inventario/
 ### Prerequisitos
 - **Node.js**: 16 o superior
 - **MongoDB**: Local o remota (Atlas)
-- **(Opcional)** Backend AFIP corriendo en puerto 3001
+- **Backend AFIP**: Corriendo en el puerto definido en `BACKEND_AFIP_URL`
 
 ### Pasos de Instalación
 
@@ -161,24 +84,28 @@ npm start
 
 ```bash
 # Conexión MongoDB
-MONGODB_URI=mongodb+srv://usuario:contraseña@cluster.mongodb.net/facstock
+MONGODB_URI=mongodb+srv://...
 
-# Puerto del servidor
+# Puerto del servidor (Recomendado: 3010)
 PUERTO=3010
 
-# Backend AFIP (opcional, solo si usas facturación electrónica)
-BACKEND_AFIP_URL=http://localhost:3001
-
-# JWT
-JWT_SECRET=tu_secret_key_muy_seguro
-JWT_EXPIRY=7d
-
-# Ambiente
-NODE_ENV=development|production
-
-# Base URL frontend (CORS)
-FRONTEND_URL=http://localhost:5173
+# Backend AFIP (Donde escucha el microservicio de AFIP)
+BACKEND_AFIP_URL=http://localhost:3005/api/
 ```
+
+---
+
+## 🏛️ Arquitectura y Comunicación
+
+Este backend actúa como el **cerebro central**. Cuando el frontend solicita una operación de AFIP, este backend utiliza el `FacturasAfipService` para delegar la tarea al microservicio especializado.
+
+### Flujo de Facturación Electrónica:
+1. `Frontend` → `POST /api/v1/facturas/crear`
+2. `Inventory Controller` → `FacturasAfipService.emitirFacturas()`
+3. `FacturasAfipService` → `Axios.post(BACKEND_AFIP_URL + 'facturas/crear')`
+4. `Backend AFIP` procesa y responde con el PDF/CAE.
+5. `Inventory Backend` guarda el registro y responde al `Frontend`.
+
 
 ---
 
