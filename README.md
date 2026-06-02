@@ -1,5 +1,5 @@
 # 🚀 FacStock - Sistema de Gestión e Invoicing
-
+** Panel Maestro **: Se creó una nueva página SuperAdminPanel.jsx accesible en la ruta /admin-maestro .
 Este repositorio contiene los tres componentes principales del ecosistema FacStock, un ERP diseñado para la gestión de inventario y facturación electrónica en Argentina.
 
 ## 🏗️ Arquitectura del Sistema

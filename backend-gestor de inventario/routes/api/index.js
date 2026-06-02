@@ -13,6 +13,7 @@ import cuentasPagarRoutes from './v1/cuentas-pagar.routes.js';
 import reportsRoutes from './v1/reports.routes.js';
 import offlineRoutes from './v1/offline.routes.js';
 import clientRoutes from './v1/client.routes.js';
+import adminRoutes from './v1/admin.routes.js';
 
 
 
@@ -36,8 +37,9 @@ routerV1.use('/offline', offlineRoutes); // sincronización offline
 routerV1.use('/clients', clientRoutes); // gestión de clientes CRM
 routerV1.use('/tickets', facturas_sin_afip); //facturas sin afip, tickets internos
 routerV1.use('/point-sales', point_salesRoutes); //puntos de ventafacturas sin afip tickets internos
-routerV1.use("/archivos", archivos_routes);//subir y bajar archivos pdf
-routerV1.use("/cajas", registroCajas_routes);//gestor de cajas
+routerV1.use('/archivos', archivos_routes);//subir y bajar archivos pdf
+routerV1.use('/cajas', registroCajas_routes);//gestor de cajas
+routerV1.use('/admin', adminRoutes); // panel central de administración
 
 
 //afip backend

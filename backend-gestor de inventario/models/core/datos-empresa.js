@@ -50,6 +50,27 @@ const empresaSchema = new mongoose.Schema({
     zonaHoraria: { type: String, required: [false, 'La zona horaria es obligatoria.'], default: 'America/Argentina/Catamarca' },
     monedaDefault: { type: String, required: [false, 'La moneda predeterminada es obligatoria.'], default: 'PES' },
     
+    // Plan de suscripción
+    planActual: {
+        type: String,
+        enum: ['free', 'basico', 'profesional', 'premium'],
+        default: 'free',
+        required: true
+    },
+    fechaPlanInicio: { 
+        type: Date, 
+        default: Date.now 
+    },
+    fechaPlanFinalizacion: { 
+        type: Date, 
+        required: false 
+    },
+    estadoPlan: {
+        type: String,
+        enum: ['activo', 'vencido', 'cancelado', 'pausado'],
+        default: 'activo'
+    },
+    
     // Certificados AFIP (pueden ir aquí si son por empresa)
     certificadoDigital: { type: String, required: false }, // Ruta o referencia al archivo .crt
     clavePrivada: { type: String, required: false }, // Ruta o referencia al archivo .key
