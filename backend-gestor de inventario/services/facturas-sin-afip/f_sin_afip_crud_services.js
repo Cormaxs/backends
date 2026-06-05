@@ -5,6 +5,7 @@ import path from 'path';
 import { update_product_ventas_services } from "../product_services.js";
 import TicketEmitidoRepository from '../../repositories/repo_tikets.js';
 import { createSaleTicket } from '../ticket_services.js';
+import { getNextSequence } from '../sequence_services.js';
 
 export async function createSinAfip(datos, idUsuario, idEmpresa, datosEmpresa) {
     // 1. Validar serie
@@ -56,17 +57,8 @@ export async function createSinAfip(datos, idUsuario, idEmpresa, datosEmpresa) {
     const lastComprobanteInterno = await TicketEmitidoRepository.findLastComprobanteInterno(idEmpresa, puntoDeVentaActual) || 0;
     const nextComprobanteInterno = lastComprobanteInterno + 1;
 
-    // 6. Generar ventaId
-    const formattedDateForVentaId = `${parsedFechaHora.getFullYear()}${padNumber(parsedFechaHora.getMonth() + 1, 2)}${padNumber(parsedFechaHora.getDate(), 2)}`;
-    const lastVentaId = await TicketEmitidoRepository.findLastVentaId(idEmpresa, puntoDeVentaActual);
-    
-    let nextVentaIdConsecutive = 1;
-    if (lastVentaId) {
-        const parts = lastVentaId.split('-');
-        if (parts.length === 3 && parts[0].includes(formattedDateForVentaId)) {
-            nextVentaIdConsecutive = parseInt(parts[2], 10) + 1;
-        }
-    }
+    // 6. Generar ventaId secuencial único
+    const { numero: nextVentaIdConsecutive, fecha: formattedDateForVentaId } = await getNextSequence(idEmpresa, 'TICKET', puntoDeVentaActual);
     const nextVentaId = `VK${formattedDateForVentaId}-${puntoDeVentaActual}-${padNumber(nextVentaIdConsecutive, 4)}`;
 
     // 7. Generar numeroComprobante

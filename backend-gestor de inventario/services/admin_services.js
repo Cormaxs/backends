@@ -40,6 +40,18 @@ export async function get_admin_company_cuentas_pagar(id) {
     return await AdminRepository.getCompanyCuentasPagar(id);
 }
 
+export async function get_admin_company_payments(id) {
+    return await AdminRepository.getCompanyPayments(id);
+}
+
+export async function get_admin_company_plan_info(id) {
+    return await AdminRepository.getCompanyPlanInfo(id);
+}
+
+export async function get_admin_company_plan_limits(id) {
+    return await AdminRepository.getCompanyPlanLimits(id);
+}
+
 export async function get_admin_users() {
     return await AdminRepository.getAllUsers();
 }

@@ -113,8 +113,16 @@ async emitirFacturas(id, cuit, servicio, factura, idEmpresa) {
             });
             return response.data; // { success, data, paginacion }
         } catch (error) {
-            //console.error("Error al buscar facturas:", error);
-            throw error.response.data;
+            console.error("Error al buscar facturas en microservicio AFIP:", error.response?.data || error.message);
+            
+            if (error.response && error.response.data) {
+                throw error.response.data;
+            }
+            
+            throw {
+                success: false,
+                message: error.message || "Error al conectar con el microservicio de AFIP"
+            };
         }
     }
 

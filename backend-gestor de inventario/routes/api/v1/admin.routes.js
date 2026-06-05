@@ -11,6 +11,7 @@ import {
     getAdminCompanyPuntosVenta,
     getAdminCompanyPagosProveedor,
     getAdminCompanyCuentasPagar,
+    getAdminCompanyPayments,
     getAdminUsers,
     getCompanyPlanInfo,
     getCompanyPlanLimits,
@@ -45,6 +46,7 @@ adminRoutes.get('/company/:id/cajas', getAdminCompanyCajas);
 adminRoutes.get('/company/:id/puntos-venta', getAdminCompanyPuntosVenta);
 adminRoutes.get('/company/:id/pagos-proveedor', getAdminCompanyPagosProveedor);
 adminRoutes.get('/company/:id/cuentas-pagar', getAdminCompanyCuentasPagar);
+adminRoutes.get('/company/:id/payments', getAdminCompanyPayments);
 
 // Usuarios
 adminRoutes.get('/users', getAdminUsers);

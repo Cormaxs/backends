@@ -3,14 +3,11 @@ import TicketEmitidoRepository from '../repositories/repo_tikets.js';
 import CajaRepository from '../repositories/repo_cajas.js';
 import { update_product_ventas_services } from './product_services.js';
 import { agregarTransaccionCaja } from './cajas/crud-cajas-services.js';
+import { getNextSequence } from './sequence_services.js';
 
-function buildVentaId(puntoDeVenta) {
-    const now = new Date();
-    const year = now.getFullYear();
-    const month = String(now.getMonth() + 1).padStart(2, '0');
-    const day = String(now.getDate()).padStart(2, '0');
-    const random = String(Math.floor(Math.random() * 10000)).padStart(4, '0');
-    return `VK${year}${month}${day}-${puntoDeVenta || '01'}-${random}`;
+async function buildVentaId(idEmpresa, puntoDeVenta) {
+    const { numero, fecha } = await getNextSequence(idEmpresa, 'TICKET', puntoDeVenta || '1');
+    return `VK${fecha}-${puntoDeVenta || '1'}-${String(numero).padStart(4, '0')}`;
 }
 
 export async function createSaleTicket({
@@ -51,7 +48,7 @@ export async function createSaleTicket({
         userId: userId || ticketData.userId || null,
         puntoDeVenta: String(puntoDeVenta || ticketData.puntoDeVenta || '1'),
         cajaId: cajaAsociadaId, // Asignamos la caja encontrada o proporcionada
-        ventaId: ticketData.ventaId || buildVentaId(puntoDeVenta || ticketData.puntoDeVenta || '1'),
+        ventaId: ticketData.ventaId || (await buildVentaId(idEmpresa, puntoDeVenta || ticketData.puntoDeVenta || '1')),
         fechaHora: ticketData.fechaHora ? new Date(ticketData.fechaHora) : new Date(),
         source,
         estadoFactura,

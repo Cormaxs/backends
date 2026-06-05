@@ -1,6 +1,6 @@
 // controllers/tu-controlador.js
 
-import { tiendaNube as productoService } from '../../services/up-masivo-db/tienda-nube.js';
+import { importarProductos as productoService } from '../../services/up-masivo-db/import-productos.js';
 import { Empresa, PuntoDeVenta } from '../../models/index.js';
 import mongoose from 'mongoose';
 

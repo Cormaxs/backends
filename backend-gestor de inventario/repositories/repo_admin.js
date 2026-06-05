@@ -1,4 +1,4 @@
-import { Empresa, User, Product, Client, Ticket, NotaPedido, PuntoDeVenta, Caja, CuentaPorPagar, PagoProveedor, Plan } from '../models/index.js';
+import { Empresa, User, Product, Client, Ticket, NotaPedido, PuntoDeVenta, Caja, CuentaPorPagar, PagoProveedor, Plan, HistorialPago } from '../models/index.js';
 
 class AdminRepository {
     async getAllPlans() {
@@ -113,6 +113,13 @@ class AdminRepository {
             .lean();
     }
 
+    async getCompanyPayments(id) {
+        return await HistorialPago.find({ empresa: id })
+            .populate('plan', 'nombre')
+            .sort({ fechaPago: -1 })
+            .lean();
+    }
+
     async getAllUsers() {
         return await User.find()
             .populate('empresa', 'nombreEmpresa razonSocial')
@@ -130,7 +137,7 @@ class AdminRepository {
             }
         };
 
-        const [users, products, clients, tickets, facturas, notasPedido, puntosVenta, cajas, cuentasPagar, pagosProveedor] = await Promise.all([
+        const [users, products, clients, tickets, facturas, notasPedido, puntosVenta, cajas, cuentasPagar, pagosProveedor, payments] = await Promise.all([
             countWithFallback(() => User.countDocuments({ empresa: companyId })),
             countWithFallback(() => Product.countDocuments({ empresa: companyId })),
             countWithFallback(() => Client.countDocuments({ empresa: companyId })),
@@ -143,7 +150,8 @@ class AdminRepository {
             countWithFallback(() => PuntoDeVenta.countDocuments({ empresa: companyId })),
             countWithFallback(() => Caja.countDocuments({ empresa: companyId })),
             countWithFallback(() => CuentaPorPagar.countDocuments({ empresa: companyId })),
-            countWithFallback(() => PagoProveedor.countDocuments({ empresa: companyId }))
+            countWithFallback(() => PagoProveedor.countDocuments({ empresa: companyId })),
+            countWithFallback(() => HistorialPago.countDocuments({ empresa: companyId }))
         ]);
 
         return {
@@ -156,7 +164,8 @@ class AdminRepository {
             puntosVenta,
             cajas,
             cuentasPagar,
-            pagosProveedor
+            pagosProveedor,
+            payments
         };
     }
 

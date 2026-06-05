@@ -22,17 +22,31 @@ class CajaRepository{
                 if (mongoose.Types.ObjectId.isValid(idPuntoVenta)) {
                     query.puntoDeVenta = new mongoose.Types.ObjectId(idPuntoVenta);
                 } else {
-                    // Si el punto de venta es un número o string no-ObjectId (ej: "1")
-                    // Primero tendríamos que encontrar el ObjectId del punto de venta para esa empresa
+                    // Si el punto de venta es un número o string no-ObjectId (ej: "1" o "Nombre Punto")
                     const { PuntoDeVenta } = await import('../models/index.js');
-                    const punto = await PuntoDeVenta.findOne({
-                        empresa: query.empresa,
-                        numero: Number(idPuntoVenta)
-                    });
+                    
+                    const numPunto = Number(idPuntoVenta);
+                    let punto;
+
+                    if (!isNaN(numPunto)) {
+                        punto = await PuntoDeVenta.findOne({
+                            empresa: query.empresa,
+                            numero: numPunto
+                        });
+                    }
+
+                    // Si no se encontró por número (o no era un número), intentar por nombre
+                    if (!punto) {
+                        punto = await PuntoDeVenta.findOne({
+                            empresa: query.empresa,
+                            nombre: String(idPuntoVenta)
+                        });
+                    }
+
                     if (punto) {
                         query.puntoDeVenta = punto._id;
                     } else {
-                        // Si no encontramos el punto de venta por número, el filtro fallará
+                        // Si no encontramos el punto de venta, el filtro fallará
                         // lo cual es correcto ya que no habría una caja abierta para ese punto.
                         return null;
                     }

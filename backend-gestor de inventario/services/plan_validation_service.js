@@ -71,8 +71,22 @@ class PlanValidationService {
         ] = await Promise.all([
             Product.countDocuments({ empresa: empresaId }),
             User.countDocuments({ empresa: empresaId }),
-            Ticket.countDocuments({ idEmpresa: empresaId, source: 'AFIP', createdAt: { $gte: firstDayOfMonth } }),
-            Ticket.countDocuments({ idEmpresa: empresaId, source: { $ne: 'AFIP' }, createdAt: { $gte: firstDayOfMonth } }),
+            Ticket.countDocuments({ 
+                idEmpresa: empresaId, 
+                source: 'AFIP', 
+                $or: [
+                    { fechaHora: { $gte: firstDayOfMonth } },
+                    { createdAt: { $gte: firstDayOfMonth } }
+                ]
+            }),
+            Ticket.countDocuments({ 
+                idEmpresa: empresaId, 
+                source: { $ne: 'AFIP' }, 
+                $or: [
+                    { fechaHora: { $gte: firstDayOfMonth } },
+                    { createdAt: { $gte: firstDayOfMonth } }
+                ]
+            }),
             NotaPedido.countDocuments({ idEmpresa: empresaId, createdAt: { $gte: firstDayOfMonth } }),
             PuntoDeVenta.countDocuments({ empresa: empresaId }),
             Caja.countDocuments({ empresa: empresaId })

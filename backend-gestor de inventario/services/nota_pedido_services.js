@@ -4,6 +4,7 @@ import { update_product_ventas_services } from './product_services.js';
 import { createTicketSinAfip as generatePdfTicket } from './facturas-sin-afip/create-tiket/estructura-tiket.js';
 import FacturasAfipService from './backend-afip/facturasAfip.service.js';
 import { createSaleTicket } from './ticket_services.js';
+import { getNextSequence } from './sequence_services.js';
 import fs from 'fs';
 import path from 'path';
 import mongoose from 'mongoose';
@@ -13,11 +14,9 @@ const facturasAfipService = new FacturasAfipService();
 export async function createNotaPedidoService(datos) {
     const { idEmpresa, idUsuario, items, totales, pago, cliente, observaciones, puntoDeVenta, vendedor, tipoComprobante, idDbAfip } = datos;
 
-    // 1. Generar pedidoId único
-    const now = new Date();
-    const formattedDate = `${now.getFullYear()}${(now.getMonth() + 1).toString().padStart(2, '0')}${now.getDate().toString().padStart(2, '0')}`;
-    const random = Math.floor(Math.random() * 10000).toString().padStart(4, '0');
-    const pedidoId = `NP${formattedDate}-${random}`;
+    // 1. Generar pedidoId secuencial único
+    const { numero, fecha } = await getNextSequence(idEmpresa, 'NOTA_PEDIDO', puntoDeVenta || '1');
+    const pedidoId = `NP${fecha}-${String(puntoDeVenta || '1')}-${String(numero).padStart(4, '0')}`;
 
     // 2. Descontar stock inmediatamente
     await update_product_ventas_services({ items });

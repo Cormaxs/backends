@@ -3,6 +3,7 @@ import Empresa from './core/datos-empresa.js';
 import User from './core/propietario.js';
 import PuntoDeVenta from './core/puntos-de-ventas.js';
 import Plan from './core/Plan.js';
+import Sequence from './core/Sequence.js';
 
 import Vendedor from './sales/vendedor.js';
 import Proveedor from './sales/proveedor.js';
@@ -25,6 +26,7 @@ export {
     User,
     PuntoDeVenta,
     Plan,
+    Sequence,
     Vendedor,
     Proveedor,
     Client,

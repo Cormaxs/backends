@@ -755,34 +755,41 @@ class ProductRepository {
       
           if (searchTerm && searchTerm.trim() !== '') {
             const term = searchTerm.trim();
-      
+            
+            // Intentar convertir a número para búsqueda exacta por código de barras
+            const termAsNumber = Number(term);
+            const isNumeric = !isNaN(termAsNumber) && term !== '';
+
             // Si el término es muy corto (menos de 3 caracteres), usamos regex para búsqueda parcial
-            // Ajusta el umbral según necesites (puedes usar siempre regex si prefieres)
             if (term.length < 3) {
-              const regex = new RegExp(term, 'i'); // 'i' para insensible a mayúsculas
+              const regex = new RegExp(term, 'i');
               const regexFilter = {
                 ...filter,
                 $or: [
                   { producto: regex },
                   { descripcion: regex },
-                  { codigoInterno: regex }
-                  // No incluyas campos numéricos como codigoBarra a menos que sean string
+                  { codigoInterno: regex },
+                  ...(isNumeric ? [{ codigoBarra: termAsNumber }] : [])
                 ]
               };
       
-              query = Product.find(regexFilter).sort({ producto: 1 }); // orden alfabético
+              query = Product.find(regexFilter).sort({ producto: 1 });
               total = await Product.countDocuments(regexFilter);
             } else {
-              // Búsqueda de texto con índice $text (más eficiente para términos largos)
-              query = Product.find(
-                { $text: { $search: term }, ...filter },
-                { score: { $meta: 'textScore' } }
-              ).sort({ score: { $meta: 'textScore' } });
+              // Búsqueda combinada: Índice de texto O coincidencia exacta de códigos
+              const complexFilter = {
+                ...filter,
+                $or: [
+                  { $text: { $search: term } },
+                  { codigoInterno: term },
+                  ...(isNumeric ? [{ codigoBarra: termAsNumber }] : [])
+                ]
+              };
+
+              query = Product.find(complexFilter)
+                .sort({ score: { $meta: 'textScore' }, producto: 1 });
       
-              total = await Product.countDocuments({
-                $text: { $search: term },
-                ...filter
-              });
+              total = await Product.countDocuments(complexFilter);
             }
           } else {
             // Sin término de búsqueda: devuelve todos ordenados por fecha

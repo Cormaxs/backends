@@ -9,6 +9,9 @@ import {
     get_admin_company_puntos_venta,
     get_admin_company_pagos_proveedor,
     get_admin_company_cuentas_pagar,
+    get_admin_company_payments,
+    get_admin_company_plan_info,
+    get_admin_company_plan_limits,
     get_admin_users,
     get_all_plans,
     create_plan,
@@ -239,6 +242,22 @@ export async function getAdminCompanyCuentasPagar(req, res) {
     }
 }
 
+export async function getAdminCompanyPayments(req, res) {
+    try {
+        const { id } = req.params;
+        
+        if (!id || id === 'undefined') {
+            return res.status(400).json({ message: 'ID de empresa inválido.' });
+        }
+        
+        const payments = await get_admin_company_payments(id);
+        return res.status(200).json({ payments, count: payments.length });
+    } catch (error) {
+        console.error('Error al obtener pagos de MP:', error);
+        return res.status(500).json({ message: 'Error al obtener pagos de MP.' });
+    }
+}
+
 export async function getAdminUsers(req, res) {
     try {
         const users = await get_admin_users();
@@ -252,21 +271,27 @@ export async function getAdminUsers(req, res) {
 export async function getCompanyPlanInfo(req, res) {
     try {
         const { id } = req.params;
-
+        
         if (!id || id === 'undefined') {
             return res.status(400).json({ message: 'ID de empresa inválido.' });
         }
-
-        const planInfo = await AdminRepo.getCompanyPlanInfo(id);
-
+        
+        const planInfo = await get_admin_company_plan_info(id);
+        
         if (!planInfo) {
             return res.status(404).json({ message: 'Empresa no encontrada.' });
         }
-
-        return res.status(200).json({ planInfo });
+        
+        return res.status(200).json({
+            success: true,
+            planInfo
+        });
     } catch (error) {
-        console.error('Error al obtener información del plan:', error);
-        return res.status(500).json({ message: 'Error al obtener información del plan.' });
+        console.error('Error al obtener info del plan:', error);
+        return res.status(500).json({ 
+            success: false,
+            message: 'Error al obtener info del plan.' 
+        });
     }
 }
 
@@ -278,15 +303,22 @@ export async function getCompanyPlanLimits(req, res) {
             return res.status(400).json({ message: 'ID de empresa inválido.' });
         }
 
-        const planLimits = await AdminRepo.getCompanyPlanLimits(id);
+        const planLimits = await get_admin_company_plan_limits(id);
 
         if (!planLimits) {
-            return res.status(404).json({ message: 'Empresa no encontrada.' });
+            return res.status(404).json({ message: 'No se encontró información del plan para esta empresa.' });
         }
 
-        return res.status(200).json({ planLimits });
+        return res.status(200).json({ 
+            success: true,
+            planLimits 
+        });
     } catch (error) {
         console.error('Error al obtener límites del plan:', error);
-        return res.status(500).json({ message: 'Error al obtener límites del plan.' });
+        return res.status(500).json({ 
+            success: false,
+            message: 'Error al obtener límites del plan.',
+            error: error.message 
+        });
     }
 }
