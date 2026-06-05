@@ -1,5 +1,6 @@
 import FacturasAfipService from '../../services/backend-afip/facturasAfip.service.js';
 import { createSaleTicket } from '../../services/ticket_services.js';
+import { Empresa, User } from '../../models/index.js';
 
 const facturasAfipService = new FacturasAfipService();
 
@@ -69,13 +70,15 @@ export default class FacturasAfip{
         
         try{
             //pasar todos los datos completos al otro backend
-                    const {id, cuit, servicio, factura, idEmpresa, cajaId} = req.body;
+                    const {id, cuit, servicio, factura, idEmpresa, cajaId, userId} = req.body;
 
-                        const resultado = await facturasAfipService.emitirFacturas(id, cuit, servicio, factura);
+                        const resultado = await facturasAfipService.emitirFacturas(id, cuit, servicio, factura, idEmpresa);
 
                         if (idEmpresa) {
                             const ticketData = buildFacturaTicketData({ empresaId: idEmpresa, factura });
                             const cajaReference = cajaId || factura.cajaId || null;
+                            const realUserId = userId || req.user?._id || null;
+                            
                             await createSaleTicket({
                                 idEmpresa,
                                 puntoDeVenta: ticketData.puntoDeVenta,
@@ -84,7 +87,9 @@ export default class FacturasAfip{
                                 stockUpdate: true,
                                 registrarCaja: !!cajaReference,
                                 source: 'AFIP',
-                                estadoFactura: 'Aprobada'
+                                estadoFactura: 'Aprobada',
+                                idDbAfip: id, // El id del cuerpo es el idDbAfip
+                                userId: realUserId
                             });
                         }
             //guardar el _id devuelto para tener los datos fiscales, guardar en propietario la referencia l id
@@ -154,9 +159,37 @@ export default class FacturasAfip{
 
     async buscar(req, res) {
         try {
-            const { estado, tipoComprobante, desde, hasta, numero, puntoVenta, cuitReceptor, cae, page, limit, userId } = req.query;
+            const { estado, tipoComprobante, desde, hasta, numero, puntoVenta, cuitReceptor, cae, page, limit, idEmpresa } = req.query;
+            let { userId } = req.query;
+
+            // Si se proporciona idEmpresa, intentamos resolver el ID de AFIP (idDbAfip)
+            // Esto es crucial porque el backend de AFIP usa su propio ID de usuario para buscar facturas antiguas
+            // que podrían no tener el campo idEmpresa guardado.
+            if (idEmpresa && !userId) {
+                // 1. Intentar obtenerlo de la Empresa
+                const empresa = await Empresa.findById(idEmpresa);
+                if (empresa && empresa.idDbAfip) {
+                    userId = empresa.idDbAfip;
+                } else {
+                    // 2. Intentar obtenerlo del usuario administrador de esa empresa
+                    const user = await User.findOne({ empresa: idEmpresa, idDbAfip: { $exists: true, $ne: null } });
+                    if (user) {
+                        userId = user.idDbAfip;
+                    }
+                }
+            }
+            
+            // Validar que al menos uno de los dos esté presente
+            if (!userId && !idEmpresa) {
+                return res.status(400).json({ 
+                    success: false, 
+                    message: "userId o idEmpresa es requerido" 
+                });
+            }
+
             const filtros = {
                 userId,
+                idEmpresa,
                 estado,
                 tipoComprobante,
                 desde,
@@ -168,12 +201,22 @@ export default class FacturasAfip{
                 page,
                 limit
             };
+
+            // Limpiar filtros indefinidos o vacíos
+            Object.keys(filtros).forEach(key => {
+                if (filtros[key] === undefined || filtros[key] === "" || filtros[key] === null) {
+                    delete filtros[key];
+                }
+            });
+
             const resultado = await facturasAfipService.buscar(filtros);
-            // resultado ya es JSON, lo enviamos directamente
             res.json(resultado);
         } catch (error) {
-            console.error(error);
-            res.status(500).json({ message: "Error al buscar facturas" });
+            console.error("Error en buscar facturas:", error);
+            res.status(500).json({ 
+                success: false,
+                message: error.message || "Error al buscar facturas" 
+            });
         }
     }
 

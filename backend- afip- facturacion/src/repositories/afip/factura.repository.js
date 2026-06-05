@@ -5,12 +5,13 @@ const facturaPdfPreparerService = new FacturaPdfPreparerService();
 
 export class FacturaRepository{
 //save data factura in db xd, to in english
-async guardarFactura(facturaData, userId) {
+async guardarFactura(facturaData, userId, idEmpresa) {
     try {
       //console.log("facturaData -> factura.repository ->", facturaData);
       // Construir el objeto a guardar según el modelo
       const facturaParaGuardar = {
         userId,
+        idEmpresa,
         estado: 'PENDIENTE',
         // Datos de AFIP (parciales)
         afip: {
@@ -129,6 +130,7 @@ async guardarFactura(facturaData, userId) {
       // Construir el objeto para la NC
       const ncParaGuardar = {
         userId,
+        idEmpresa: facturaOriginal.idEmpresa,
         estado: 'PENDIENTE',
         // Datos de AFIP (parciales, se completarán después)
         afip: {
@@ -359,23 +361,38 @@ async guardarFactura(facturaData, userId) {
 
   async buscarFacturas(filtros = {}, paginacion = {}) {
     try {
-      const { userId, estado, tipoComprobante, desde, hasta, numero, puntoVenta, cuitReceptor, cae } = filtros;
+      const { userId, idEmpresa, estado, tipoComprobante, desde, hasta, numero, puntoVenta, cuitReceptor, cae } = filtros;
       const { page = 1, limit = 10 } = paginacion;
   
       const query = {};
   
-      // Filtro obligatorio
-      if (userId) query.userId = userId;
+      // Filtros de propiedad: Si vienen ambos, usamos $or para encontrar facturas
+      // guardadas con cualquiera de los dos identificadores (útil para migración de datos)
+      if (idEmpresa && userId) {
+        query.$or = [
+          { idEmpresa: idEmpresa },
+          { userId: userId }
+        ];
+      } else if (idEmpresa) {
+        query.idEmpresa = idEmpresa;
+      } else if (userId) {
+        query.userId = userId;
+      }
   
       // Filtros opcionales
       if (estado) query.estado = estado;
-      if (tipoComprobante) query['afip.tipoComprobante'] = Number(tipoComprobante);
+      
+      if (tipoComprobante) {
+        // Puede venir como string o número
+        query['afip.tipoComprobante'] = Number(tipoComprobante);
+      }
+      
       if (puntoVenta) query['afip.puntoVenta'] = Number(puntoVenta);
       if (numero) query['afip.numero'] = Number(numero);
       if (cuitReceptor) query['receptor.numeroDocumento'] = cuitReceptor;
       if (cae) query['afip.cae'] = cae;
   
-      // Rango de fechas (usamos createdAt, podrías usar fecha de comprobante si prefieres)
+      // Rango de fechas
       if (desde || hasta) {
         query.createdAt = {};
         if (desde) query.createdAt.$gte = new Date(desde);
@@ -388,7 +405,7 @@ async guardarFactura(facturaData, userId) {
         .sort({ createdAt: -1 })
         .skip((page - 1) * limit)
         .limit(parseInt(limit))
-        .populate('userId', 'empresa.razonSocial empresa.cuit'); // opcional
+        .populate('userId', 'empresa.razonSocial empresa.cuit');
   
       return {
         facturas,
@@ -400,7 +417,7 @@ async guardarFactura(facturaData, userId) {
         }
       };
     } catch (error) {
-      console.error('Error en buscarFacturas:', error);
+      console.error('Error en buscarFacturas (Repository):', error);
       throw error;
     }
   }

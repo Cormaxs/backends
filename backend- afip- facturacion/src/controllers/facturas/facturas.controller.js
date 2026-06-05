@@ -92,7 +92,7 @@ export class FacturasController{
     // En afip.controller.js
     crearFacturaElectronica = async (req, res) => {
       try {
-        const { id, cuit, factura } = req.body;
+        const { id, cuit, factura, idEmpresa } = req.body;
         const datosUser = await dataUser.obtenerEmpresaUserId(id);
         const token = req.token;
         //console.log("entro a controllers para generar facturta")
@@ -119,7 +119,7 @@ export class FacturasController{
        
        //console.log("factura validada.factura -> ", facturaValidada.factura)
        //guardar en db
-       const guardada = await facturaRepository.guardarFactura(facturaValidada.factura, id);
+       const guardada = await facturaRepository.guardarFactura(facturaValidada.factura, id, idEmpresa);
         //mando a afip
         const resultado = await facturacionService.crearFactura(
           token.token,
@@ -280,14 +280,15 @@ export class FacturasController{
     try {
       // Idealmente el userId viene del token de autenticación
       // Por ahora lo tomamos de req.query, pero deberías validar que coincida con el usuario autenticado
-      const { estado, tipoComprobante, desde, hasta, numero, puntoVenta, cuitReceptor, cae, page, limit, userId } = req.query;
+      const { estado, tipoComprobante, desde, hasta, numero, puntoVenta, cuitReceptor, cae, page, limit, userId, idEmpresa } = req.query;
   
-      if (!userId) {
-        return res.status(400).json({ success: false, message: 'userId es requerido' });
+      if (!userId && !idEmpresa) {
+        return res.status(400).json({ success: false, message: 'userId o idEmpresa es requerido' });
       }
   
       const filtros = {
-        userId,
+        userId: userId || undefined,
+        idEmpresa: idEmpresa || undefined,
         estado,
         tipoComprobante,
         desde,
@@ -316,17 +317,21 @@ export class FacturasController{
   async financialSummary(req, res) {
     try {
       const { userId } = req.params;
-      const { start, end, granularity, puntoVenta } = req.query;
+      const { start, end, granularity, puntoVenta, idEmpresa } = req.query;
 
-      if (!userId) {
-        return res.status(400).json({ success: false, message: 'userId es requerido' });
+      if (!userId && !idEmpresa) {
+        return res.status(400).json({ success: false, message: 'userId o idEmpresa es requerido' });
       }
 
-      const companyId = mongoose.Types.ObjectId.isValid(userId)
-        ? new mongoose.Types.ObjectId(userId)
-        : userId;
-
-      const match = { userId: companyId };
+      const companyId = userId || idEmpresa;
+      const match = {};
+      
+      if (userId) {
+        match.userId = mongoose.Types.ObjectId.isValid(userId) ? new mongoose.Types.ObjectId(userId) : userId;
+      } else if (idEmpresa) {
+        match.idEmpresa = idEmpresa;
+      }
+      
       if (puntoVenta) {
         const punto = Number(puntoVenta);
         match['afip.puntoVenta'] = Number.isNaN(punto) ? puntoVenta : punto;

@@ -1,6 +1,6 @@
 import { Router } from "express";
 import {CreateCompany, updateCompany, deleteCompany, 
-    getCompany, getCompanyAll} from "../../../controllers/company/CRUD.controller.js";
+    getCompany, getCompanyAll, getCompanyPlanStatus} from "../../../controllers/company/CRUD.controller.js";
 
 const companyRoutes = Router();
 
@@ -9,6 +9,7 @@ companyRoutes.post("/update/:idEmpresa", updateCompany);
 companyRoutes.delete("/delete/:id", deleteCompany);
 companyRoutes.get("/get/all", getCompanyAll);
 companyRoutes.get("/get/:id", getCompany);
+companyRoutes.get("/plan-status/:id", getCompanyPlanStatus);
 
 
 

@@ -2,6 +2,7 @@ import Express from "express";
 import env from "dotenv";
 import cors from "cors";
 import connectDB from "./db/connect.js";
+import { seedPlans } from "./db/seeders.js";
 import routerV1 from "./routes/api/index.js";
 import { checkPlan, checkUsageLimits } from './middlewares/plan.middleware.js';
 import { errorHandler } from "./middlewares/error_handler.js";
@@ -26,6 +27,7 @@ app.use(errorHandler);
 const startServer = async () => {
     try {
         await connectDB();
+        await seedPlans();
         app.listen(PORT, () => {
             process.stdout.write(`Server is running on port ${PORT} http://localhost:${PORT}\n`);
         });

@@ -9,8 +9,74 @@ import {
     get_admin_company_puntos_venta,
     get_admin_company_pagos_proveedor,
     get_admin_company_cuentas_pagar,
-    get_admin_users
+    get_admin_users,
+    get_all_plans,
+    create_plan,
+    update_plan,
+    delete_plan
 } from '../../services/admin_services.js';
+
+export async function getAdminPlans(req, res) {
+    try {
+        console.log('--- [BACKEND] GET /admin/plans ---');
+        const plans = await get_all_plans();
+        
+        if (!plans) {
+            console.log('--- [BACKEND] No se devolvieron planes del servicio ---');
+            return res.status(200).json([]);
+        }
+
+        console.log(`--- [BACKEND] Enviando ${plans.length} planes al frontend ---`);
+        return res.status(200).json(plans);
+    } catch (error) {
+        console.error('--- [BACKEND] Error crítico en GET /admin/plans:', error);
+        return res.status(500).json({ message: 'Error interno del servidor al obtener planes.', error: error.message });
+    }
+}
+
+export async function createAdminPlan(req, res) {
+    try {
+        console.log('--- [BACKEND] POST /admin/plans --- Recibido:', JSON.stringify(req.body, null, 2));
+        const plan = await create_plan(req.body);
+        
+        if (!plan) {
+            console.error('--- [BACKEND] El servicio no devolvió el plan creado ---');
+            return res.status(400).json({ message: 'No se pudo crear el plan.' });
+        }
+
+        console.log('--- [BACKEND] Plan creado exitosamente:', plan.nombre, '(ID:', plan._id, ')');
+        return res.status(201).json(plan);
+    } catch (error) {
+        console.error('--- [BACKEND] Error en POST /admin/plans:', error);
+        return res.status(500).json({ 
+            message: 'Error al crear plan.', 
+            error: error.message,
+            stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
+        });
+    }
+}
+
+export async function updateAdminPlan(req, res) {
+    try {
+        const { id } = req.params;
+        const plan = await update_plan(id, req.body);
+        return res.status(200).json(plan);
+    } catch (error) {
+        console.error('Error al actualizar plan:', error);
+        return res.status(500).json({ message: 'Error al actualizar plan.' });
+    }
+}
+
+export async function deleteAdminPlan(req, res) {
+    try {
+        const { id } = req.params;
+        await delete_plan(id);
+        return res.status(200).json({ message: 'Plan eliminado.' });
+    } catch (error) {
+        console.error('Error al eliminar plan:', error);
+        return res.status(500).json({ message: 'Error al eliminar plan.' });
+    }
+}
 
 export async function getAdminCompaniesSummary(req, res) {
     try {

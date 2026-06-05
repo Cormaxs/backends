@@ -35,6 +35,11 @@ const notaPedidoSchema = new mongoose.Schema({
         required: true,
         index: true
     },
+    // ID redundante para facilitar la vinculación con el microservicio de AFIP si existe
+    idDbAfip: {
+        type: String,
+        index: true
+    },
     puntoDeVenta: { type: String, required: true },
     idUsuario: { type: mongoose.Schema.Types.ObjectId, ref: 'Users-logins', required: true },
     

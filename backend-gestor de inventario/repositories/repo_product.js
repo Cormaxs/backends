@@ -438,15 +438,22 @@ class ProductRepository {
 
     async getProductAgotados(idEmpresa, puntoDeVenta, page = 1, limit = 10) {
         try {
-            if (!mongoose.Types.ObjectId.isValid(idEmpresa)) {
-                throw new Error('ID de empresa inválido.');
+            if (!idEmpresa) {
+                throw new Error('ID de empresa es requerido.');
             }
+            const companyId = mongoose.Types.ObjectId.isValid(idEmpresa) ? new mongoose.Types.ObjectId(idEmpresa) : idEmpresa;
             const filtro = {
-                empresa: new mongoose.Types.ObjectId(idEmpresa),
+                empresa: companyId,
                 stock_disponible: { $lte: 0 }
             };
-            if (puntoDeVenta && mongoose.Types.ObjectId.isValid(puntoDeVenta)) {
-                filtro.puntoVenta = new mongoose.Types.ObjectId(puntoDeVenta);
+            if (puntoDeVenta) {
+                if (mongoose.Types.ObjectId.isValid(puntoDeVenta)) {
+                    filtro.puntoVenta = new mongoose.Types.ObjectId(puntoVenta);
+                } else {
+                    const { PuntoDeVenta } = await import('../models/index.js');
+                    const punto = await PuntoDeVenta.findOne({ empresa: companyId, numero: Number(puntoDeVenta) });
+                    if (punto) filtro.puntoVenta = punto._id;
+                }
             }
             const [totalDocs, docs] = await Promise.all([
                 Product.countDocuments(filtro),
@@ -477,11 +484,12 @@ class ProductRepository {
 
     async getProductsStockBajo(idEmpresa, puntoDeVenta, page = 1, limit = 10) {
         try {
-            if (!mongoose.Types.ObjectId.isValid(idEmpresa)) {
-                throw new Error('ID de empresa inválido.');
+            if (!idEmpresa) {
+                throw new Error('ID de empresa es requerido.');
             }
+            const companyId = mongoose.Types.ObjectId.isValid(idEmpresa) ? new mongoose.Types.ObjectId(idEmpresa) : idEmpresa;
             const filtro = {
-                empresa: new mongoose.Types.ObjectId(idEmpresa),
+                empresa: companyId,
                 $expr: {
                     $and: [
                         { $gt: ["$stockMinimo", 0] },
@@ -490,8 +498,14 @@ class ProductRepository {
                     ]
                 }
             };
-            if (puntoDeVenta && mongoose.Types.ObjectId.isValid(puntoDeVenta)) {
-                filtro.puntoVenta = new mongoose.Types.ObjectId(puntoDeVenta);
+            if (puntoDeVenta) {
+                if (mongoose.Types.ObjectId.isValid(puntoDeVenta)) {
+                    filtro.puntoVenta = new mongoose.Types.ObjectId(puntoDeVenta);
+                } else {
+                    const { PuntoDeVenta } = await import('../models/index.js');
+                    const punto = await PuntoDeVenta.findOne({ empresa: companyId, numero: Number(puntoDeVenta) });
+                    if (punto) filtro.puntoVenta = punto._id;
+                }
             }
             const [totalDocs, docs] = await Promise.all([
                 Product.countDocuments(filtro),
@@ -522,16 +536,23 @@ class ProductRepository {
 
     async getProductsVencidos(idEmpresa, puntoDeVenta, page = 1, limit = 20) {
         try {
-            if (!mongoose.Types.ObjectId.isValid(idEmpresa)) {
-                throw new Error('ID de empresa inválido.');
+            if (!idEmpresa) {
+                throw new Error('ID de empresa es requerido.');
             }
+            const companyId = mongoose.Types.ObjectId.isValid(idEmpresa) ? new mongoose.Types.ObjectId(idEmpresa) : idEmpresa;
             const hoy = new Date();
             const filtro = {
-                empresa: new mongoose.Types.ObjectId(idEmpresa),
+                empresa: companyId,
                 fechaVencimiento: { $lte: hoy }
             };
-            if (puntoDeVenta && mongoose.Types.ObjectId.isValid(puntoDeVenta)) {
-                filtro.puntoVenta = new mongoose.Types.ObjectId(puntoDeVenta);
+            if (puntoDeVenta) {
+                if (mongoose.Types.ObjectId.isValid(puntoDeVenta)) {
+                    filtro.puntoVenta = new mongoose.Types.ObjectId(puntoDeVenta);
+                } else {
+                    const { PuntoDeVenta } = await import('../models/index.js');
+                    const punto = await PuntoDeVenta.findOne({ empresa: companyId, numero: Number(puntoDeVenta) });
+                    if (punto) filtro.puntoVenta = punto._id;
+                }
             }
             const [totalDocs, docs] = await Promise.all([
                 Product.countDocuments(filtro),
@@ -559,18 +580,25 @@ class ProductRepository {
 
     async getProductsPorVencer(idEmpresa, puntoDeVenta, dias = 30, page = 1, limit = 20) {
         try {
-            if (!mongoose.Types.ObjectId.isValid(idEmpresa)) {
-                throw new Error('ID de empresa inválido.');
+            if (!idEmpresa) {
+                throw new Error('ID de empresa es requerido.');
             }
+            const companyId = mongoose.Types.ObjectId.isValid(idEmpresa) ? new mongoose.Types.ObjectId(idEmpresa) : idEmpresa;
             const hoy = new Date();
             const rango = new Date();
             rango.setDate(hoy.getDate() + Number(dias));
             const filtro = {
-                empresa: new mongoose.Types.ObjectId(idEmpresa),
+                empresa: companyId,
                 fechaVencimiento: { $gt: hoy, $lte: rango }
             };
-            if (puntoDeVenta && mongoose.Types.ObjectId.isValid(puntoDeVenta)) {
-                filtro.puntoVenta = new mongoose.Types.ObjectId(puntoDeVenta);
+            if (puntoDeVenta) {
+                if (mongoose.Types.ObjectId.isValid(puntoDeVenta)) {
+                    filtro.puntoVenta = new mongoose.Types.ObjectId(puntoDeVenta);
+                } else {
+                    const { PuntoDeVenta } = await import('../models/index.js');
+                    const punto = await PuntoDeVenta.findOne({ empresa: companyId, numero: Number(puntoDeVenta) });
+                    if (punto) filtro.puntoVenta = punto._id;
+                }
             }
             const [totalDocs, docs] = await Promise.all([
                 Product.countDocuments(filtro),
@@ -598,15 +626,22 @@ class ProductRepository {
 
     async priceInventario(idEmpresa, puntoDeVenta) {
         try {
-            if (!mongoose.Types.ObjectId.isValid(idEmpresa)) {
-                throw new Error('ID de empresa inválido.');
+            if (!idEmpresa) {
+                throw new Error('ID de empresa es requerido.');
             }
+            const companyId = mongoose.Types.ObjectId.isValid(idEmpresa) ? new mongoose.Types.ObjectId(idEmpresa) : idEmpresa;
             const matchFilter = {
-                empresa: new mongoose.Types.ObjectId(idEmpresa),
+                empresa: companyId,
                 stock_disponible: { $gt: 0 }
             };
-            if (puntoDeVenta && mongoose.Types.ObjectId.isValid(puntoDeVenta)) {
-                matchFilter.puntoVenta = new mongoose.Types.ObjectId(puntoDeVenta);
+            if (puntoDeVenta) {
+                if (mongoose.Types.ObjectId.isValid(puntoDeVenta)) {
+                    matchFilter.puntoVenta = new mongoose.Types.ObjectId(puntoDeVenta);
+                } else {
+                    const { PuntoDeVenta } = await import('../models/index.js');
+                    const punto = await PuntoDeVenta.findOne({ empresa: companyId, numero: Number(puntoDeVenta) });
+                    if (punto) matchFilter.puntoVenta = punto._id;
+                }
             }
             const resultadoAgregacion = await Product.aggregate([
                 { $match: matchFilter },

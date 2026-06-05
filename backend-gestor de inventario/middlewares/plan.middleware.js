@@ -1,44 +1,63 @@
-import PLANES from '../config/planes.js';
+import { Empresa } from '../models/index.js';
+import PlanValidationService from '../services/plan_validation_service.js';
 
-// Simple in-memory usage counters (replace with DB for production)
-const usageCounters = new Map();
-
-export function checkPlan(req, res, next) {
-    // attach a default plan to res.locals
-    // In real app, resolve user's company plan from DB (req.user or req.company)
-    res.locals.userPlan = PLANES.free;
-    next();
+export async function checkPlan(req, res, next) {
+    try {
+        const empresaId = req.user?.empresa || req.body?.idEmpresa || req.params?.idEmpresa;
+        
+        if (empresaId) {
+            const empresa = await Empresa.findById(empresaId);
+            if (empresa) {
+                res.locals.userPlan = await PlanValidationService.getPlanoLimites(empresa);
+                res.locals.empresaId = empresaId;
+                res.locals.empresa = empresa;
+                return next();
+            }
+        }
+        
+        next();
+    } catch (error) {
+        console.error("Error en checkPlan middleware:", error);
+        next();
+    }
 }
 
-export function checkUsageLimits(req, res, next) {
+export async function checkUsageLimits(req, res, next) {
     try {
-        // MODO DESARROLLO/TESTEO: Desactivamos el límite temporalmente
-        // Simplemente dejamos pasar la petición al siguiente controlador
-        return next();
+        const empresaId = res.locals.empresaId;
+        if (!empresaId) return next();
 
-        /* --- Lógica pausada temporalmente ---
-        const userKey = (req.session && req.session.user && req.session.user.id) || req.ip || 'anon';
-        const plan = res.locals.userPlan || PLANES.free;
-        if (plan.ventas_mes && plan.ventas_mes > 0) {
-            const now = new Date();
-            const monthKey = `${userKey}:${now.getUTCFullYear()}:${now.getUTCMonth()}`;
-            const count = usageCounters.get(monthKey) || 0;
-            if (count >= plan.ventas_mes) {
-                return res.status(429).json({ error: 'Límite de uso del plan alcanzado' });
+        let action = null;
+        if (req.path.includes('/emitir')) action = 'emitir_factura_afip'; // Ruta de AFIP
+        if (req.path.includes('/tickets/create')) action = 'emitir_ticket'; // Ruta de Tickets internos
+        if (req.path.includes('/nota-pedido/create')) action = 'crear_nota_pedido'; // Ruta de Notas de pedido
+        if (req.path.includes('/products/add')) action = 'crear_producto';
+        if (req.path.includes('/auth/register')) action = 'crear_usuario';
+        if (req.path.includes('/point-sales/create')) action = 'crear_punto_venta';
+        if (req.path.includes('/cajas/abrirCaja')) action = 'crear_caja';
+
+        if (action) {
+            const verificacion = await PlanValidationService.puedoRealizarAccion(empresaId, action);
+            if (!verificacion.permitido) {
+                return res.status(403).json({ 
+                    success: false, 
+                    error: verificacion.razon,
+                    tipo: 'limite_alcanzado'
+                });
             }
-            usageCounters.set(monthKey, count + 1);
         }
+        
         next();
-        -------------------------------------- */
     } catch (err) {
+        console.error("Error en checkUsageLimits:", err);
         next();
     }
 }
 
 export function limitFuncionality(feature) {
     return (req, res, next) => {
-        const plan = res.locals.userPlan || PLANES.free;
-        if (!plan[feature]) return res.status(403).json({ error: 'Funcionalidad no disponible en tu plan' });
+        const plan = res.locals.userPlan;
+        if (plan && !plan[feature]) return res.status(403).json({ error: 'Funcionalidad no disponible en tu plan' });
         next();
     };
 }

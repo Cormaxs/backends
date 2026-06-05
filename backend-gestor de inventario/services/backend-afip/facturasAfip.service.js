@@ -3,11 +3,14 @@ import API_BASE_URL from "./api-direccion.js";
 
 export default class FacturasAfipService {
     //manda facturas ABC 
-async emitirFacturas(id, cuit, servicio, factura) {
+async emitirFacturas(id, cuit, servicio, factura, idEmpresa) {
     try {
+        // Limpiar guiones del CUIT antes de enviar al backend de AFIP
+        const cuitLimpio = typeof cuit === 'string' ? cuit.replace(/-/g, '') : cuit;
+
         const response = await axios.post(
             API_BASE_URL + "facturas/crear",
-            { id, cuit, servicio, factura },
+            { id, cuit: cuitLimpio, servicio, factura, idEmpresa },
             { responseType: 'arraybuffer' }
         );
         return response.data; // Éxito: retorna el Buffer del PDF

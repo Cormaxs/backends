@@ -14,6 +14,7 @@ import reportsRoutes from './v1/reports.routes.js';
 import offlineRoutes from './v1/offline.routes.js';
 import clientRoutes from './v1/client.routes.js';
 import adminRoutes from './v1/admin.routes.js';
+import paymentRoutes from './v1/payment.routes.js';
 
 
 
@@ -40,6 +41,7 @@ routerV1.use('/point-sales', point_salesRoutes); //puntos de ventafacturas sin a
 routerV1.use('/archivos', archivos_routes);//subir y bajar archivos pdf
 routerV1.use('/cajas', registroCajas_routes);//gestor de cajas
 routerV1.use('/admin', adminRoutes); // panel central de administración
+routerV1.use('/payments', paymentRoutes); // pagos y suscripciones Mercado Pago
 
 
 //afip backend

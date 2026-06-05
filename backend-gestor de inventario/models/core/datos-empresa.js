@@ -52,10 +52,12 @@ const empresaSchema = new mongoose.Schema({
     
     // Plan de suscripción
     planActual: {
-        type: String,
-        enum: ['free', 'basico', 'profesional', 'premium'],
-        default: 'free',
-        required: true
+        type: String, // Slug del plan: 'free', 'basico', etc.
+        default: 'free'
+    },
+    planId: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'Plan'
     },
     fechaPlanInicio: { 
         type: Date, 
@@ -71,6 +73,17 @@ const empresaSchema = new mongoose.Schema({
         default: 'activo'
     },
     
+    // Seguimiento de consumo acumulado (opcional, para rapidez)
+    consumoActual: {
+        productos: { type: Number, default: 0 },
+        facturasAfipMes: { type: Number, default: 0 },
+        ticketsMes: { type: Number, default: 0 },
+        notasPedidoMes: { type: Number, default: 0 },
+        usuarios: { type: Number, default: 0 },
+        puntosVenta: { type: Number, default: 0 },
+        cajas: { type: Number, default: 0 }
+    },
+    
     // Certificados AFIP (pueden ir aquí si son por empresa)
     certificadoDigital: { type: String, required: false }, // Ruta o referencia al archivo .crt
     clavePrivada: { type: String, required: false }, // Ruta o referencia al archivo .key
@@ -82,7 +95,14 @@ const empresaSchema = new mongoose.Schema({
         enum: ['PRODUCCION', 'HOMOLOGACION'],
         default: 'HOMOLOGACION' // Mejor empezar en homologación para pruebas
     },
-    idDbAfip: {type: String, required: false} // Nuevo: ID de la empresa en la base de datos de AFIP, si es necesario para integraciones
+    idDbAfip: {type: String, required: false}, // Nuevo: ID de la empresa en la base de datos de AFIP, si es necesario para integraciones
+
+    // Integración Mercado Pago
+    mpPreapprovalId: { type: String, required: false }, // ID de suscripción en MP
+    mpCustomerId: { type: String, required: false },
+    mpStatus: { type: String, required: false }, // status de la suscripción
+    proximoPago: { type: Date, required: false },
+    ultimoPagoExitoso: { type: Date, required: false }
 }, {
     timestamps: true
 });

@@ -10,20 +10,32 @@ class CajaRepository{
 
     async findOpenCaja(idEmpresa, idPuntoVenta) {
         try {
+            // Validar idEmpresa antes de intentar convertirlo
+            if (!idEmpresa) return null;
+            
             const query = {
-                empresa: new mongoose.Types.ObjectId(idEmpresa),
+                empresa: mongoose.Types.ObjectId.isValid(idEmpresa) ? new mongoose.Types.ObjectId(idEmpresa) : idEmpresa,
                 estado: 'Abierta'
             };
 
             if (idPuntoVenta) {
-                // Si viene como string de número, o como ObjectId
                 if (mongoose.Types.ObjectId.isValid(idPuntoVenta)) {
                     query.puntoDeVenta = new mongoose.Types.ObjectId(idPuntoVenta);
                 } else {
-                    // Si el punto de venta es un número o string no-ObjectId, 
-                    // tendríamos que buscar por el campo puntoDeVenta del modelo, 
-                    // pero el modelo dice que es una referencia.
-                    // Si es una referencia, necesitamos el ObjectId.
+                    // Si el punto de venta es un número o string no-ObjectId (ej: "1")
+                    // Primero tendríamos que encontrar el ObjectId del punto de venta para esa empresa
+                    const { PuntoDeVenta } = await import('../models/index.js');
+                    const punto = await PuntoDeVenta.findOne({
+                        empresa: query.empresa,
+                        numero: Number(idPuntoVenta)
+                    });
+                    if (punto) {
+                        query.puntoDeVenta = punto._id;
+                    } else {
+                        // Si no encontramos el punto de venta por número, el filtro fallará
+                        // lo cual es correcto ya que no habría una caja abierta para ese punto.
+                        return null;
+                    }
                 }
             }
 

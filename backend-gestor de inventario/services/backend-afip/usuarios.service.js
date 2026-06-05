@@ -7,6 +7,11 @@ export default class AfipUsers {
     // crea los datos de la empresa de afip, y devuelve el id para guardar en el propietario y tener los datos fiscales guardados
     async createCompany(empresa, idPropietario, idUser) {
         try {
+            // Limpiar guiones del CUIT antes de enviar al backend de AFIP
+            if (empresa && empresa.cuit) {
+                empresa.cuit = empresa.cuit.replace(/-/g, '');
+            }
+
             const response = await axios.post(API_BASE_URL + "usuario/datos-fiscales", { empresa });
 
             if (response?.data?.guardado?._id) {

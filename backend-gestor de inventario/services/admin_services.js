@@ -43,3 +43,19 @@ export async function get_admin_company_cuentas_pagar(id) {
 export async function get_admin_users() {
     return await AdminRepository.getAllUsers();
 }
+
+export async function get_all_plans() {
+    return await AdminRepository.getAllPlans();
+}
+
+export async function create_plan(planData) {
+    return await AdminRepository.createPlan(planData);
+}
+
+export async function update_plan(id, planData) {
+    return await AdminRepository.updatePlan(id, planData);
+}
+
+export async function delete_plan(id) {
+    return await AdminRepository.deletePlan(id);
+}

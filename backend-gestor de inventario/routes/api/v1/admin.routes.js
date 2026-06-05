@@ -13,12 +13,22 @@ import {
     getAdminCompanyCuentasPagar,
     getAdminUsers,
     getCompanyPlanInfo,
-    getCompanyPlanLimits
+    getCompanyPlanLimits,
+    getAdminPlans,
+    createAdminPlan,
+    updateAdminPlan,
+    deleteAdminPlan
 } from '../../../controllers/admin/admin_controller.js';
 
 const adminRoutes = Router();
 
 adminRoutes.use(adminAuth);
+
+// Gestión de Planes
+adminRoutes.get('/plans', getAdminPlans);
+adminRoutes.post('/plans', createAdminPlan);
+adminRoutes.put('/plans/:id', updateAdminPlan);
+adminRoutes.delete('/plans/:id', deleteAdminPlan);
 
 // Resumen de empresas
 adminRoutes.get('/companies', getAdminCompaniesSummary);

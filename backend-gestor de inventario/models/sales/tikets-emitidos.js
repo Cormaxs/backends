@@ -38,6 +38,17 @@ const ticketSchema = new mongoose.Schema({
         required: true,
         index: true
     },
+    // ID redundante para facilitar la vinculación con el microservicio de AFIP
+    idDbAfip: {
+        type: String,
+        index: true
+    },
+    // Referencia al usuario que emitió el ticket
+    userId: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'User',
+        index: true
+    },
     // El nombre del campo `puntoDeVenta` coincide con el que viene en `datos`
     // y se usa en las queries del repositorio.
     puntoDeVenta: { type: String, required: true },

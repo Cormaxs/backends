@@ -11,7 +11,7 @@ import mongoose from 'mongoose';
 const facturasAfipService = new FacturasAfipService();
 
 export async function createNotaPedidoService(datos) {
-    const { idEmpresa, idUsuario, items, totales, pago, cliente, observaciones, puntoDeVenta, vendedor, tipoComprobante } = datos;
+    const { idEmpresa, idUsuario, items, totales, pago, cliente, observaciones, puntoDeVenta, vendedor, tipoComprobante, idDbAfip } = datos;
 
     // 1. Generar pedidoId único
     const now = new Date();
@@ -25,6 +25,7 @@ export async function createNotaPedidoService(datos) {
     // 3. Crear Nota de Pedido
     const nuevaNota = new NotaPedido({
         idEmpresa,
+        idDbAfip: idDbAfip || null,
         idUsuario,
         puntoDeVenta,
         pedidoId,
@@ -287,12 +288,17 @@ export async function facturarNotaPedidoService(idNota, idUsuario, idEmpresa, da
             source: 'INTERNAL'
         };
 
-        result = await createSinAfip(ticketData, idUsuario.toString(), idEmpresa.toString(), datosEmpresa);
+        const userIdString = idUsuario ? idUsuario.toString() : null;
+        const empresaIdString = idEmpresa ? idEmpresa.toString() : null;
+
+        result = await createSinAfip(ticketData, userIdString, empresaIdString, datosEmpresa);
     }
 
     // 3. Marcar nota como FACTURADA y referenciar el resultado
     nota.estado = 'FACTURADO';
-    nota.idTicketGenerado = result._id;
+    if (result && result._id) {
+        nota.idTicketGenerado = result._id;
+    }
     await nota.save();
 
     return result;

@@ -1,6 +1,28 @@
-import { Empresa, User, Product, Client, Ticket, NotaPedido, PuntoDeVenta, Caja, CuentaPorPagar, PagoProveedor } from '../models/index.js';
+import { Empresa, User, Product, Client, Ticket, NotaPedido, PuntoDeVenta, Caja, CuentaPorPagar, PagoProveedor, Plan } from '../models/index.js';
 
 class AdminRepository {
+    async getAllPlans() {
+        if (!Plan) {
+            console.error('El modelo Plan no está definido en AdminRepository.');
+            return [];
+        }
+        return await Plan.find().sort({ precio: 1 }).lean();
+    }
+
+    async createPlan(planData) {
+        if (!Plan) throw new Error('Modelo Plan no cargado');
+        const plan = new Plan(planData);
+        return await plan.save();
+    }
+
+    async updatePlan(id, planData) {
+        return await Plan.findByIdAndUpdate(id, planData, { new: true }).lean();
+    }
+
+    async deletePlan(id) {
+        return await Plan.findByIdAndDelete(id);
+    }
+
     async getCompaniesSummary() {
         const companies = await Empresa.find().lean();
         return await Promise.all(companies.map(async (company) => {

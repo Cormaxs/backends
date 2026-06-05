@@ -25,7 +25,7 @@ class TicketEmitidoRepository {
         return await Ticket.findByIdAndDelete(id);
     }
 
-    //busca tickets por id
+    // busca tickets por id
     async findById(id) {
         if (!mongoose.Types.ObjectId.isValid(id)) {
             throw new Error('ID de ticket inválido para la búsqueda.');
@@ -33,14 +33,25 @@ class TicketEmitidoRepository {
         return await Ticket.findById(id);
     }
 
+    async findByIdDbAfip(idDbAfip) {
+        return await Ticket.find({ idDbAfip }).sort({ createdAt: -1 });
+    }
+
+    async findByUserId(userId) {
+        if (!mongoose.Types.ObjectId.isValid(userId)) {
+            throw new Error('ID de usuario inválido.');
+        }
+        return await Ticket.find({ userId }).sort({ createdAt: -1 });
+    }
+
     async findLastComprobanteInterno(idEmpresa, puntoDeVenta) {
         try {
-            if (!mongoose.Types.ObjectId.isValid(idEmpresa)) {
-                throw new Error('ID de empresa inválido para buscar el último comprobante interno.');
+            if (!idEmpresa) {
+                throw new Error('ID de empresa es requerido para buscar el último comprobante interno.');
             }
             const lastTicket = await Ticket.findOne({
-                idEmpresa: idEmpresa,
-                puntoDeVenta: puntoDeVenta
+                idEmpresa: mongoose.Types.ObjectId.isValid(idEmpresa) ? new mongoose.Types.ObjectId(idEmpresa) : idEmpresa,
+                puntoDeVenta: String(puntoDeVenta)
             })
             .sort({ numeroComprobanteInterno: -1 })
             .limit(1)
@@ -57,13 +68,13 @@ class TicketEmitidoRepository {
     //busca la ultima venta
     async findLastVentaId(idEmpresa, puntoDeVenta) {
         try {
-            if (!mongoose.Types.ObjectId.isValid(idEmpresa)) {
-                throw new Error('ID de empresa inválido para buscar el último ventaId.');
+            if (!idEmpresa) {
+                throw new Error('ID de empresa es requerido para buscar el último ventaId.');
             }
 
             const lastTicket = await Ticket.findOne({
-                idEmpresa: idEmpresa,
-                puntoDeVenta: puntoDeVenta
+                idEmpresa: mongoose.Types.ObjectId.isValid(idEmpresa) ? new mongoose.Types.ObjectId(idEmpresa) : idEmpresa,
+                puntoDeVenta: String(puntoDeVenta)
             })
             .sort({ ventaId: -1 })
             .limit(1)
@@ -79,13 +90,13 @@ class TicketEmitidoRepository {
     //busca el ultimo comprobante
     async findLastNumeroComprobante(idEmpresa, puntoDeVenta) {
         try {
-            if (!mongoose.Types.ObjectId.isValid(idEmpresa)) {
-                throw new Error('ID de empresa inválido para buscar el último numeroComprobante.');
+            if (!idEmpresa) {
+                throw new Error('ID de empresa es requerido para buscar el último numeroComprobante.');
             }
 
             const lastTicket = await Ticket.findOne({
-                idEmpresa: idEmpresa,
-                puntoDeVenta: puntoDeVenta
+                idEmpresa: mongoose.Types.ObjectId.isValid(idEmpresa) ? new mongoose.Types.ObjectId(idEmpresa) : idEmpresa,
+                puntoDeVenta: String(puntoDeVenta)
             })
             .sort({ numeroComprobante: -1 })
             .limit(1)
@@ -101,13 +112,13 @@ class TicketEmitidoRepository {
 
     //busca por punto de venta
     async findByDetails(puntoDeVenta, idEmpresa, numeroComprobanteInterno) {
-        if (!mongoose.Types.ObjectId.isValid(idEmpresa)) {
-            throw new Error('ID de empresa inválido para buscar por detalles.');
+        if (!idEmpresa) {
+            throw new Error('ID de empresa es requerido para buscar por detalles.');
         }
 
         return await Ticket.findOne({
-            puntoDeVenta: puntoDeVenta,
-            idEmpresa: idEmpresa,
+            puntoDeVenta: String(puntoDeVenta),
+            idEmpresa: mongoose.Types.ObjectId.isValid(idEmpresa) ? new mongoose.Types.ObjectId(idEmpresa) : idEmpresa,
             numeroComprobanteInterno: numeroComprobanteInterno
         });
     }
@@ -126,15 +137,14 @@ class TicketEmitidoRepository {
     // Se inicia la consulta con el operador $and para combinar múltiples condiciones.
     const query = {
         $and: [
-            { idEmpresa: idEmpresa } // El filtro de empresa siempre es obligatorio
+            { idEmpresa: mongoose.Types.ObjectId.isValid(idEmpresa) ? new mongoose.Types.ObjectId(idEmpresa) : idEmpresa } // El filtro de empresa siempre es obligatorio
         ]
     };
 
     // ✅ 3. AÑADIR FILTRO OPCIONAL POR `puntoventa`
-    // Si se proporciona un `puntoventa` específico, se añade como una condición más.
-    if (puntoventa && mongoose.Types.ObjectId.isValid(puntoventa)) {
-        // Asumiendo que el campo en tu schema se llama `puntoDeVenta`
-        query.$and.push({ puntoDeVenta: puntoventa });
+    // El campo puntoDeVenta en el modelo es String. Puede ser un ID o un número de punto (ej: "1").
+    if (puntoventa) {
+        query.$and.push({ puntoDeVenta: String(puntoventa) });
     }
 
     // 4. AÑADIR LÓGICA DE BÚSQUEDA GENERAL SI EXISTE `search`

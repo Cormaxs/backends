@@ -1,15 +1,39 @@
-import PLANES from '../config/planes.js';
-import { Empresa, Product, User, Ticket, PuntoDeVenta, Caja } from '../models/index.js';
+import PLANES_STATIC from '../config/planes.js';
+import { Empresa, Product, User, Ticket, NotaPedido, PuntoDeVenta, Caja, Plan, HistorialPago } from '../models/index.js';
 
 class PlanValidationService {
     /**
-     * Obtiene los límites del plan de una empresa
+     * Obtiene los límites del plan de una empresa desde la DB o fallback a static
      */
-    getPlanoLimites(nombrePlan) {
-        if (!PLANES[nombrePlan]) {
-            return PLANES.free;
+    async getPlanoLimites(empresa) {
+        let plan;
+        if (empresa.planId) {
+            plan = await Plan.findById(empresa.planId).lean();
+        } else {
+            // Intentar buscar por el slug (planActual)
+            plan = await Plan.findOne({ slug: empresa.planActual }).lean();
         }
-        return PLANES[nombrePlan];
+
+        if (!plan) {
+            // Fallback a configuración estática si no está en la DB
+            const staticPlan = PLANES_STATIC[empresa.planActual] || PLANES_STATIC.free;
+            return {
+                nombre: staticPlan.nombre,
+                slug: empresa.planActual,
+                productosLimite: staticPlan.productosLimite,
+                usuariosLimite: staticPlan.usuariosLimite,
+                facturasMensualesLimite: staticPlan.facturasMenu || 0,
+                ticketsMensualesLimite: staticPlan.ticketsLimite || 0,
+                notasPedidoMensualesLimite: staticPlan.notasPedidoLimite || 0,
+                puntosVentaLimite: staticPlan.puntosVentaLimite || 1,
+                cajasLimite: staticPlan.cajasLimite || 1,
+                exportXlsx: staticPlan.exportXlsx || false,
+                soportePrioritario: staticPlan.soportePrioritario || false,
+                precio: staticPlan.precio || 0
+            };
+        }
+
+        return plan;
     }
 
     /**
@@ -29,13 +53,27 @@ class PlanValidationService {
     }
 
     /**
-     * Obtiene el uso actual de la empresa
+     * Obtiene el uso actual de la empresa en tiempo real
      */
     async getEmpresaUsage(empresaId) {
-        const [productCount, userCount, facturaCount, pdvCount, cajaCount] = await Promise.all([
+        const now = new Date();
+        const firstDayOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+
+        // IMPORTANTE: idEmpresa vs empresa según cada modelo
+        const [
+            productCount, 
+            userCount, 
+            afipCount,
+            ticketCount, 
+            notaPedidoCount, 
+            pdvCount, 
+            cajaCount
+        ] = await Promise.all([
             Product.countDocuments({ empresa: empresaId }),
             User.countDocuments({ empresa: empresaId }),
-            Ticket.countDocuments({ idEmpresa: empresaId }),
+            Ticket.countDocuments({ idEmpresa: empresaId, source: 'AFIP', createdAt: { $gte: firstDayOfMonth } }),
+            Ticket.countDocuments({ idEmpresa: empresaId, source: { $ne: 'AFIP' }, createdAt: { $gte: firstDayOfMonth } }),
+            NotaPedido.countDocuments({ idEmpresa: empresaId, createdAt: { $gte: firstDayOfMonth } }),
             PuntoDeVenta.countDocuments({ empresa: empresaId }),
             Caja.countDocuments({ empresa: empresaId })
         ]);
@@ -43,165 +81,115 @@ class PlanValidationService {
         return {
             productos: productCount,
             usuarios: userCount,
-            facturas: facturaCount,
+            facturasAfipMes: afipCount,
+            ticketsMes: ticketCount,
+            notasPedidoMes: notaPedidoCount,
             puntosVenta: pdvCount,
             cajas: cajaCount
         };
     }
 
     /**
-     * Verifica si una empresa puede realizar una acción
-     * @param {string} empresaId - ID de la empresa
-     * @param {string} accion - Tipo de acción: 'crear_producto', 'crear_usuario', 'crear_factura', etc.
+     * Obtiene un resumen completo del plan, consumo e historial de pagos
      */
-    async puedoRealizarAccion(empresaId, accion) {
-        const empresa = await Empresa.findById(empresaId).lean();
+    async getResumenCompleto(empresaId) {
+        // Intentar buscar por _id primero, y por idDbAfip después para mayor compatibilidad
+        let empresa = await Empresa.findById(empresaId).lean();
+        
+        if (!empresa) {
+            empresa = await Empresa.findOne({ idDbAfip: empresaId }).lean();
+        }
 
         if (!empresa) {
-            return {
-                permitido: false,
-                razon: 'Empresa no encontrada'
-            };
+            console.error(`--- [PLAN SERVICE] Empresa no encontrada con ID: ${empresaId} ---`);
+            return null;
         }
 
-        // Verificar si el plan está activo
-        if (!this.isPlanActivo(empresa)) {
-            return {
-                permitido: false,
-                razon: `Plan ${empresa.estadoPlan}. No se pueden realizar operaciones.`,
-                estadoPlan: empresa.estadoPlan
-            };
-        }
+        const realEmpresaId = empresa._id;
 
-        const limites = this.getPlanoLimites(empresa.planActual);
-        const uso = await this.getEmpresaUsage(empresaId);
-
-        // Validaciones según la acción
-        switch (accion) {
-            case 'crear_producto':
-                if (uso.productos >= limites.productosLimite) {
-                    return {
-                        permitido: false,
-                        razon: `Límite de productos alcanzado (${limites.productosLimite})`,
-                        tipo: 'limite_alcanzado'
-                    };
-                }
-                break;
-
-            case 'crear_usuario':
-                if (uso.usuarios >= limites.usuariosLimite) {
-                    return {
-                        permitido: false,
-                        razon: `Límite de usuarios alcanzado (${limites.usuariosLimite})`,
-                        tipo: 'limite_alcanzado'
-                    };
-                }
-                break;
-
-            case 'crear_factura':
-            case 'crear_ticket':
-                if (uso.facturas >= limites.facturasMenu) {
-                    return {
-                        permitido: false,
-                        razon: `Límite de facturas/mes alcanzado (${limites.facturasMenu})`,
-                        tipo: 'limite_alcanzado'
-                    };
-                }
-                break;
-
-            case 'crear_punto_venta':
-                if (uso.puntosVenta >= limites.puntosVentaLimite) {
-                    return {
-                        permitido: false,
-                        razon: `Límite de puntos de venta alcanzado (${limites.puntosVentaLimite})`,
-                        tipo: 'limite_alcanzado'
-                    };
-                }
-                break;
-
-            case 'crear_caja':
-                if (uso.cajas >= limites.cajasLimite) {
-                    return {
-                        permitido: false,
-                        razon: `Límite de cajas alcanzado (${limites.cajasLimite})`,
-                        tipo: 'limite_alcanzado'
-                    };
-                }
-                break;
-
-            case 'exportar_xlsx':
-                if (!limites.exportXlsx) {
-                    return {
-                        permitido: false,
-                        razon: 'Tu plan no permite exportar a Excel',
-                        tipo: 'feature_no_disponible'
-                    };
-                }
-                break;
-
-            default:
-                break;
-        }
+        const [limites, uso, pagos, todosLosPlanes] = await Promise.all([
+            this.getPlanoLimites(empresa),
+            this.getEmpresaUsage(realEmpresaId),
+            HistorialPago.find({ empresa: realEmpresaId }).sort({ fechaPago: -1 }).limit(10).lean(),
+            Plan.find({ activo: true }).sort({ precio: 1 }).lean()
+        ]);
 
         return {
-            permitido: true,
-            razon: 'Acción permitida'
+            empresa: {
+                nombre: empresa.nombreEmpresa,
+                planActual: empresa.planActual,
+                estadoPlan: empresa.estadoPlan || 'activo',
+                fechaPlanInicio: empresa.fechaPlanInicio,
+                fechaPlanFinalizacion: empresa.fechaPlanFinalizacion
+            },
+            plan: limites,
+            consumo: uso,
+            pagos: pagos,
+            planesDisponibles: todosLosPlanes
         };
     }
 
     /**
-     * Obtiene un resumen del uso vs límites de la empresa
+     * Obtiene un resumen detallado del plan y consumo para la vista de administración
      */
     async getResumenPlan(empresaId) {
         const empresa = await Empresa.findById(empresaId).lean();
-
         if (!empresa) return null;
 
-        const limites = this.getPlanoLimites(empresa.planActual);
-        const uso = await this.getEmpresaUsage(empresaId);
-
-        const calcularPorcentaje = (actual, limite) => {
-            if (limite >= 999999) return 100; // Ilimitado
-            return Math.round((actual / limite) * 100);
-        };
+        const [limites, uso] = await Promise.all([
+            this.getPlanoLimites(empresa),
+            this.getEmpresaUsage(empresaId)
+        ]);
 
         return {
-            plan: empresa.planActual,
             nombrePlan: limites.nombre,
-            estadoPlan: empresa.estadoPlan,
+            slugPlan: limites.slug,
+            estadoPlan: empresa.estadoPlan || 'activo',
+            esActivo: this.isPlanActivo(empresa),
             fechaInicio: empresa.fechaPlanInicio,
             fechaVencimiento: empresa.fechaPlanFinalizacion,
-            esActivo: this.isPlanActivo(empresa),
             limites: {
                 productos: {
                     usado: uso.productos,
                     limite: limites.productosLimite,
-                    porcentaje: calcularPorcentaje(uso.productos, limites.productosLimite),
-                    esIlimitado: limites.productosLimite >= 999999
+                    porcentaje: this.calculatePercent(uso.productos, limites.productosLimite),
+                    esIlimitado: limites.productosLimite === 999999
                 },
                 usuarios: {
                     usado: uso.usuarios,
                     limite: limites.usuariosLimite,
-                    porcentaje: calcularPorcentaje(uso.usuarios, limites.usuariosLimite),
-                    esIlimitado: limites.usuariosLimite >= 999999
+                    porcentaje: this.calculatePercent(uso.usuarios, limites.usuariosLimite),
+                    esIlimitado: limites.usuariosLimite === 999999
                 },
                 facturas: {
-                    usado: uso.facturas,
-                    limite: limites.facturasMenu,
-                    porcentaje: calcularPorcentaje(uso.facturas, limites.facturasMenu),
-                    esIlimitado: limites.facturasMenu >= 999999
+                    usado: uso.facturasAfipMes,
+                    limite: limites.facturasMensualesLimite,
+                    porcentaje: this.calculatePercent(uso.facturasAfipMes, limites.facturasMensualesLimite),
+                    esIlimitado: limites.facturasMensualesLimite === 999999
+                },
+                tickets: {
+                    usado: uso.ticketsMes,
+                    limite: limites.ticketsMensualesLimite,
+                    porcentaje: this.calculatePercent(uso.ticketsMes, limites.ticketsMensualesLimite),
+                    esIlimitado: limites.ticketsMensualesLimite === 999999
+                },
+                notasPedido: {
+                    usado: uso.notasPedidoMes,
+                    limite: limites.notasPedidoMensualesLimite,
+                    porcentaje: this.calculatePercent(uso.notasPedidoMes, limites.notasPedidoMensualesLimite),
+                    esIlimitado: limites.notasPedidoMensualesLimite === 999999
                 },
                 puntosVenta: {
                     usado: uso.puntosVenta,
                     limite: limites.puntosVentaLimite,
-                    porcentaje: calcularPorcentaje(uso.puntosVenta, limites.puntosVentaLimite),
-                    esIlimitado: limites.puntosVentaLimite >= 999999
+                    porcentaje: this.calculatePercent(uso.puntosVenta, limites.puntosVentaLimite),
+                    esIlimitado: limites.puntosVentaLimite === 999999
                 },
                 cajas: {
                     usado: uso.cajas,
                     limite: limites.cajasLimite,
-                    porcentaje: calcularPorcentaje(uso.cajas, limites.cajasLimite),
-                    esIlimitado: limites.cajasLimite >= 999999
+                    porcentaje: this.calculatePercent(uso.cajas, limites.cajasLimite),
+                    esIlimitado: limites.cajasLimite === 999999
                 }
             },
             características: {
@@ -209,6 +197,86 @@ class PlanValidationService {
                 soportePrioritario: limites.soportePrioritario
             }
         };
+    }
+
+    calculatePercent(usado, limite) {
+        if (!limite || limite === 999999) return 0;
+        return Math.min(Math.round((usado / limite) * 100), 100);
+    }
+
+    /**
+     * Verifica si una empresa puede realizar una acción
+     */
+    async puedoRealizarAccion(empresaId, accion) {
+        const empresa = await Empresa.findById(empresaId).lean();
+
+        if (!empresa) {
+            return { permitido: false, razon: 'Empresa no encontrada' };
+        }
+
+        if (!this.isPlanActivo(empresa)) {
+            return {
+                permitido: false,
+                razon: `Plan ${empresa.estadoPlan || 'inactivo'}. No se pueden realizar operaciones.`,
+                estadoPlan: empresa.estadoPlan || 'inactivo'
+            };
+        }
+
+        const limites = await this.getPlanoLimites(empresa);
+        const uso = await this.getEmpresaUsage(empresaId);
+
+        // Validaciones según la acción
+        switch (accion) {
+            case 'crear_producto':
+                if (limites.productosLimite !== 999999 && uso.productos >= limites.productosLimite) {
+                    return { permitido: false, razon: `Límite de productos alcanzado (${limites.productosLimite})` };
+                }
+                break;
+
+            case 'crear_usuario':
+                if (limites.usuariosLimite !== 999999 && uso.usuarios >= limites.usuariosLimite) {
+                    return { permitido: false, razon: `Límite de usuarios alcanzado (${limites.usuariosLimite})` };
+                }
+                break;
+
+            case 'emitir_factura_afip':
+                if (limites.facturasMensualesLimite !== 999999 && uso.facturasAfipMes >= limites.facturasMensualesLimite) {
+                    return { permitido: false, razon: `Límite de facturas AFIP alcanzado (${limites.facturasMensualesLimite})` };
+                }
+                break;
+
+            case 'emitir_ticket':
+                if (limites.ticketsMensualesLimite !== 999999 && uso.ticketsMes >= limites.ticketsMensualesLimite) {
+                    return { permitido: false, razon: `Límite de tickets alcanzado (${limites.ticketsMensualesLimite})` };
+                }
+                break;
+
+            case 'crear_nota_pedido':
+                if (limites.notasPedidoMensualesLimite !== 999999 && uso.notasPedidoMes >= limites.notasPedidoMensualesLimite) {
+                    return { permitido: false, razon: `Límite de notas de pedido alcanzado (${limites.notasPedidoMensualesLimite})` };
+                }
+                break;
+            
+            case 'crear_punto_venta':
+                if (limites.puntosVentaLimite !== 999999 && uso.puntosVenta >= limites.puntosVentaLimite) {
+                    return { permitido: false, razon: `Límite de puntos de venta alcanzado (${limites.puntosVentaLimite})` };
+                }
+                break;
+            
+            case 'crear_caja':
+                if (limites.cajasLimite !== 999999 && uso.cajas >= limites.cajasLimite) {
+                    return { permitido: false, razon: `Límite de cajas alcanzado (${limites.cajasLimite})` };
+                }
+                break;
+            
+            case 'exportar_xlsx':
+                if (!limites.exportXlsx) {
+                    return { permitido: false, razon: 'Tu plan no permite exportar a Excel' };
+                }
+                break;
+        }
+
+        return { permitido: true };
     }
 }
 

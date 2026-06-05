@@ -2,8 +2,11 @@
 import mongoose from 'mongoose';
 
 const facturaSchema = new mongoose.Schema({
-  // Referencia al usuario
+  // Referencia al usuario de AFIP (DataUser)
   userId: { type: mongoose.Schema.Types.ObjectId, ref: 'DataUser', required: true, index: true },
+  
+  // ID de la empresa en el Gestor de Inventario (para sincronización de planes)
+  idEmpresa: { type: String, required: false, index: true },
   
   // ✅ ESTADOS BÁSICOS
   estado: {

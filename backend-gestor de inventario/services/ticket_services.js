@@ -21,7 +21,9 @@ export async function createSaleTicket({
     stockUpdate = true,
     registrarCaja = false,
     source = 'MANUAL',
-    estadoFactura = 'Aprobada'
+    estadoFactura = 'Aprobada',
+    idDbAfip = null,
+    userId = null
 }) {
     if (!idEmpresa) {
         throw new Error('idEmpresa es requerido para guardar el ticket.');
@@ -45,6 +47,8 @@ export async function createSaleTicket({
     const cleanedTicketData = {
         ...ticketData,
         idEmpresa,
+        idDbAfip: idDbAfip || ticketData.idDbAfip || null,
+        userId: userId || ticketData.userId || null,
         puntoDeVenta: String(puntoDeVenta || ticketData.puntoDeVenta || '1'),
         cajaId: cajaAsociadaId, // Asignamos la caja encontrada o proporcionada
         ventaId: ticketData.ventaId || buildVentaId(puntoDeVenta || ticketData.puntoDeVenta || '1'),
