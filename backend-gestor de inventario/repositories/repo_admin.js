@@ -97,6 +97,45 @@ class AdminRepository {
             .lean();
     }
 
+    async updateCompanyPlanAdmin(id, { planId, fechaVencimiento, metodoPago, montoPago }) {
+        const company = await Empresa.findById(id);
+        if (!company) throw new Error('Empresa no encontrada');
+
+        const plan = await Plan.findById(planId);
+        if (!plan) throw new Error('Plan no encontrado');
+
+        const updateData = {
+            planId: planId,
+            planActual: plan.slug,
+            estadoPlan: 'activo',
+            fechaPlanFinalizacion: fechaVencimiento ? new Date(fechaVencimiento) : null,
+            ultimoPagoExitoso: new Date()
+        };
+
+        // Si se proporciona monto, registrar en historial
+        if (montoPago > 0) {
+            const historial = new HistorialPago({
+                empresa: id,
+                plan: planId,
+                monto: montoPago,
+                moneda: 'ARS',
+                fechaPago: new Date(),
+                periodoInicio: new Date(),
+                periodoFin: fechaVencimiento ? new Date(fechaVencimiento) : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+                metodoPago: metodoPago || 'manual_admin',
+                referenciaPago: `admin_${Date.now()}`,
+                estado: 'completado',
+                detallesMP: {
+                    admin_update: true,
+                    note: 'Actualizado manualmente por administrador'
+                }
+            });
+            await historial.save();
+        }
+
+        return await Empresa.findByIdAndUpdate(id, updateData, { new: true }).lean();
+    }
+
     async getCompanyPagosProveedor(id) {
         return await PagoProveedor.find({ empresa: id })
             .select('proveedor montoPagado metodoPago fechaPago observaciones')

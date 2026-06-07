@@ -68,6 +68,10 @@ export async function update_plan(id, planData) {
     return await AdminRepository.updatePlan(id, planData);
 }
 
+export async function update_company_plan_admin(id, data) {
+    return await AdminRepository.updateCompanyPlanAdmin(id, data);
+}
+
 export async function delete_plan(id) {
     return await AdminRepository.deletePlan(id);
 }

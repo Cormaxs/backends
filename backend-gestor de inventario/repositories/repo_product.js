@@ -776,7 +776,9 @@ class ProductRepository {
               query = Product.find(regexFilter).sort({ producto: 1 });
               total = await Product.countDocuments(regexFilter);
             } else {
-              // Búsqueda combinada: Índice de texto O coincidencia exacta de códigos
+              // Búsqueda combinada: Intentar Índice de texto O coincidencia exacta de códigos
+            // Si el índice de texto falla (ej: no creado aún), caerá al bloque catch
+            try {
               const complexFilter = {
                 ...filter,
                 $or: [
@@ -790,6 +792,26 @@ class ProductRepository {
                 .sort({ score: { $meta: 'textScore' }, producto: 1 });
       
               total = await Product.countDocuments(complexFilter);
+            } catch (mongoError) {
+              // Fallback a regex si el índice de texto no está disponible
+              if (mongoError.code === 27 || mongoError.message.includes('text index required')) {
+                console.warn('Índice de texto no encontrado, usando búsqueda por regex como fallback.');
+                const regex = new RegExp(term, 'i');
+                const fallbackFilter = {
+                  ...filter,
+                  $or: [
+                    { producto: regex },
+                    { descripcion: regex },
+                    { codigoInterno: regex },
+                    ...(isNumeric ? [{ codigoBarra: termAsNumber }] : [])
+                  ]
+                };
+                query = Product.find(fallbackFilter).sort({ producto: 1 });
+                total = await Product.countDocuments(fallbackFilter);
+              } else {
+                throw mongoError;
+              }
+            }
             }
           } else {
             // Sin término de búsqueda: devuelve todos ordenados por fecha

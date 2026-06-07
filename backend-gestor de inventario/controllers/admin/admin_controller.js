@@ -16,6 +16,7 @@ import {
     get_all_plans,
     create_plan,
     update_plan,
+    update_company_plan_admin,
     delete_plan
 } from '../../services/admin_services.js';
 
@@ -34,6 +35,17 @@ export async function getAdminPlans(req, res) {
     } catch (error) {
         console.error('--- [BACKEND] Error crítico en GET /admin/plans:', error);
         return res.status(500).json({ message: 'Error interno del servidor al obtener planes.', error: error.message });
+    }
+}
+
+export async function updateCompanyPlanAdmin(req, res) {
+    try {
+        const { id } = req.params;
+        const result = await update_company_plan_admin(id, req.body);
+        return res.status(200).json({ success: true, company: result });
+    } catch (error) {
+        console.error('Error al actualizar plan de empresa por admin:', error);
+        return res.status(500).json({ success: false, message: error.message });
     }
 }
 

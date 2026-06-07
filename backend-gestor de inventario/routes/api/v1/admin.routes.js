@@ -16,6 +16,7 @@ import {
     getCompanyPlanInfo,
     getCompanyPlanLimits,
     getAdminPlans,
+    updateCompanyPlanAdmin,
     createAdminPlan,
     updateAdminPlan,
     deleteAdminPlan
@@ -30,6 +31,9 @@ adminRoutes.get('/plans', getAdminPlans);
 adminRoutes.post('/plans', createAdminPlan);
 adminRoutes.put('/plans/:id', updateAdminPlan);
 adminRoutes.delete('/plans/:id', deleteAdminPlan);
+
+// Actualizar plan de empresa por admin
+adminRoutes.put('/company/:id/update-plan', updateCompanyPlanAdmin);
 
 // Resumen de empresas
 adminRoutes.get('/companies', getAdminCompaniesSummary);

@@ -3,16 +3,16 @@ import { Empresa, Plan, HistorialPago } from '../../models/index.js';
 
 class PaymentController {
     /**
-     * Inicia el proceso de suscripción a un plan
+     * Inicia el proceso de suscripción a un plan (Recurrente)
      */
     async startSubscription(req, res) {
         try {
             const { empresaId, planId, email } = req.body;
 
-            if (!empresaId || !planId) {
+            if (!empresaId || !planId || !email) {
                 return res.status(400).json({ 
                     success: false, 
-                    message: 'empresaId y planId son requeridos' 
+                    message: 'empresaId, planId y email son requeridos' 
                 });
             }
 
@@ -44,20 +44,45 @@ class PaymentController {
             res.json({
                 success: true,
                 init_point: subscription.init_point, // URL para redirigir al usuario
-                subscriptionId: subscription.id
+                subscriptionId: subscription.id,
+                message: 'Redirija al usuario a init_point para completar la suscripción'
             });
         } catch (error) {
-            console.error('Error en startSubscription controller:', error);
-            
-            // Si el error viene de Mercado Pago, intentamos extraer el mensaje útil
-            const status = error.status || 500;
-            const message = error.message || 'Error al iniciar suscripción';
-            const details = error.details || error.response?.data || null;
-
-            res.status(status).json({ 
+            console.error('❌ Error en startSubscription controller:', error);
+            res.status(500).json({ 
                 success: false, 
-                message,
-                details
+                message: error.message || 'Error al iniciar suscripción'
+            });
+        }
+    }
+
+    /**
+     * Crea una preferencia para pago único (QR, Débito, Efectivo, etc.)
+     */
+    async createPreference(req, res) {
+        try {
+            const { empresaId, planId, email } = req.body;
+
+            if (!empresaId || !planId || !email) {
+                return res.status(400).json({ 
+                    success: false, 
+                    message: 'empresaId, planId y email son requeridos' 
+                });
+            }
+
+            const preference = await MercadoPagoService.createOneTimePayment(empresaId, planId, email);
+            
+            res.json({
+                success: true,
+                init_point: preference.init_point,
+                preferenceId: preference.id,
+                message: 'Redirija al usuario a init_point para realizar el pago único'
+            });
+        } catch (error) {
+            console.error('❌ Error en createPreference controller:', error);
+            res.status(500).json({ 
+                success: false, 
+                message: error.message || 'Error al crear preferencia de pago'
             });
         }
     }

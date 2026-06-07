@@ -33,11 +33,14 @@ const historialPagoSchema = new mongoose.Schema({
     },
     metodoPago: {
         type: String,
-        enum: ['transferencia', 'mercadopago', 'tarjeta', 'efectivo', 'otro'],
+        // Eliminamos el enum rígido para permitir mayor flexibilidad con MP
         default: 'otro'
     },
     referenciaPago: {
         type: String // ID de transacción de MP, etc.
+    },
+    detallesMP: {
+        type: Object // Guardar status, payment_type, etc.
     },
     estado: {
         type: String,

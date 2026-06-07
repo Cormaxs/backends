@@ -156,14 +156,23 @@ ProductSchema.index(
         partialFilterExpression: { codigoInterno: { $type: "string" } } 
     }
 );
-/*usar en db shell mongo compass para poder buscar todo en 1
-db.products.createIndex({
-    producto: "text",
-    descripcion: "text",
-    codigoInterno: "text",
-    codigoBarra: "text",
-    marca: "text",
-    categoria: "text"
-  })*/
+
+// Índice de texto para búsquedas rápidas en múltiples campos
+ProductSchema.index(
+    { 
+        producto: "text", 
+        descripcion: "text", 
+        codigoInterno: "text"
+    },
+    {
+        name: "TextIndex",
+        weights: {
+            producto: 10,
+            descripcion: 5,
+            codigoInterno: 2
+        }
+    }
+);
+
 const Product = mongoose.model('Product', ProductSchema);
 export default Product;

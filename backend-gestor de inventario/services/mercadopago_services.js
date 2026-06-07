@@ -36,9 +36,11 @@ class MercadoPagoService {
 
             const preApproval = new PreApproval(client);
             
+            // Para suscripciones, MP recomienda usar PreApproval
+            // Esto permite cobros recurrentes automáticos.
             const body = {
                 reason: `Suscripción FacStock - Plan ${plan.nombre}`,
-                external_reference: `${empresaId}:${planId}`,
+                external_reference: `${empresaId}:${planId}:subscription`,
                 payer_email: payerEmail.trim().toLowerCase(),
                 auto_recurring: {
                     frequency: 1,
@@ -47,6 +49,7 @@ class MercadoPagoService {
                     currency_id: 'ARS'
                 },
                 back_url: process.env.FRONTEND_URL || 'https://front.facstock.com/',
+                notification_url: `${process.env.BACKEND_URL}/api/v1/payments/webhook`,
                 status: 'pending'
             };
 
@@ -54,25 +57,69 @@ class MercadoPagoService {
             const response = await preApproval.create({ body });
             console.log('✅ Suscripción creada exitosamente:', response.id);
             
-            // Guardar el ID de pre-aprobación en la empresa
+            // Guardar el ID de pre-aprobación en la empresa para seguimiento
             await Empresa.findByIdAndUpdate(empresaId, {
                 mpPreapprovalId: response.id,
-                mpStatus: response.status
+                mpStatus: response.status,
+                // No cambiamos el plan aún, esperamos al webhook 'authorized'
             });
 
             return response;
         } catch (error) {
-            console.error('❌ Error en MercadoPagoService.createSubscription:');
-            if (error.response) {
-                console.error('Status:', error.status);
-                console.error('Data:', JSON.stringify(error.response.data, null, 2));
-                
-                // Lanzar un error más descriptivo basado en la respuesta de MP
-                const mpError = new Error(error.response.data?.message || error.message || 'Error en Mercado Pago');
-                mpError.status = error.status || 401;
-                mpError.details = error.response.data;
-                throw mpError;
-            }
+            console.error('❌ Error en MercadoPagoService.createSubscription:', error);
+            throw error;
+        }
+    }
+
+    /**
+     * Crea una preferencia de pago único (Checkout Pro)
+     * Ideal para cobrar con QR, Dinero en cuenta, Débito, Efectivo (Rapipago/Pago Fácil)
+     * sin necesidad de suscripción recurrente.
+     */
+    async createOneTimePayment(empresaId, planId, payerEmail) {
+        try {
+            const empresa = await Empresa.findById(empresaId);
+            const plan = await Plan.findById(planId);
+
+            if (!empresa || !plan) throw new Error('Empresa o Plan no encontrado');
+
+            const preference = new Preference(client);
+
+            const body = {
+                items: [
+                    {
+                        id: planId,
+                        title: `Plan ${plan.nombre} - FacStock (Pago Manual)`,
+                        quantity: 1,
+                        unit_price: plan.precio,
+                        currency_id: 'ARS',
+                        description: `Acceso por 30 días al plan ${plan.nombre}. Renovación manual.`
+                    }
+                ],
+                payer: {
+                    email: payerEmail.trim().toLowerCase(),
+                    name: empresa.nombreEmpresa || 'Cliente FacStock',
+                    surname: 'Empresa',
+                },
+                external_reference: `${empresaId}:${planId}:onetime`,
+                back_urls: {
+                    success: `${process.env.FRONTEND_URL}/dashboard?payment=success`,
+                    failure: `${process.env.FRONTEND_URL}/dashboard?payment=failure`,
+                    pending: `${process.env.FRONTEND_URL}/dashboard?payment=pending`
+                },
+                auto_return: 'approved',
+                notification_url: `${process.env.BACKEND_URL}/api/v1/payments/webhook`,
+                metadata: {
+                    empresa_id: empresaId,
+                    plan_id: planId,
+                    type: 'onetime'
+                }
+            };
+
+            const response = await preference.create({ body });
+            return response;
+        } catch (error) {
+            console.error('❌ Error creando preferencia de pago único:', error);
             throw error;
         }
     }
@@ -84,8 +131,13 @@ class MercadoPagoService {
         try {
             console.log(`🔔 Webhook recibido: ${topic} - ID: ${id}`);
 
-            // Caso 1: Actualización de la suscripción (PreApproval)
-            if (topic === 'preapproval') {
+            // Normalizar el tópico si viene de diferentes versiones de la API
+            let actualTopic = topic;
+            if (topic === 'subscription_preapproval') actualTopic = 'preapproval';
+            if (topic === 'subscription_authorized_payment') actualTopic = 'payment';
+
+            // CASO 1: Actualización de la suscripción (PreApproval)
+            if (actualTopic === 'preapproval') {
                 const preApproval = new PreApproval(client);
                 const subscription = await preApproval.get({ id });
 
@@ -94,51 +146,88 @@ class MercadoPagoService {
                 const [empresaId, planId] = subscription.external_reference.split(':');
                 const status = subscription.status;
 
+                console.log(`📝 Suscripción ${id} cambió a estado: ${status}`);
+
                 const updateData = { mpStatus: status };
 
                 if (status === 'authorized') {
+                    // La suscripción fue autorizada (el usuario vinculó su tarjeta)
                     updateData.estadoPlan = 'activo';
                     
-                    if (planId) {
-                        const plan = await Plan.findById(planId);
-                        if (plan) {
-                            updateData.planId = planId;
-                            updateData.planActual = plan.slug;
-                        }
+                    const plan = await Plan.findById(planId);
+                    if (plan) {
+                        updateData.planId = planId;
+                        updateData.planActual = plan.slug;
                     }
                     
+                    // Extender fecha de finalización (30 días)
                     const nextDate = new Date();
-                    nextDate.setMonth(nextDate.getMonth() + 1);
+                    nextDate.setDate(nextDate.getDate() + 30);
                     updateData.fechaPlanFinalizacion = nextDate;
                     updateData.proximoPago = nextDate;
                     updateData.ultimoPagoExitoso = new Date();
 
-                    await this.recordPayment(empresaId, planId, subscription);
+                    await Empresa.findByIdAndUpdate(empresaId, updateData);
+                    await this.recordPayment(empresaId, planId, subscription, 'subscription');
                 } else if (status === 'cancelled' || status === 'paused') {
-                    updateData.estadoPlan = 'vencido';
+                    await Empresa.findByIdAndUpdate(empresaId, { 
+                        mpStatus: status,
+                        estadoPlan: 'vencido' 
+                    });
                 }
-
-                await Empresa.findByIdAndUpdate(empresaId, updateData);
             }
             
-            // Caso 2: Cobro individual (Payment) - Útil para registrar cada cobro mensual
-            if (topic === 'payment') {
+            // CASO 2: Cobro individual (Payment)
+            // Se dispara para pagos únicos (QR, etc.) y para CADA cobro mensual de una suscripción
+            if (actualTopic === 'payment') {
                 const payment = new Payment(client);
                 const paymentData = await payment.get({ id });
 
-                // Si el pago viene de una suscripción, tendrá preapproval_id
-                const preapprovalId = paymentData.metadata?.preapproval_id || paymentData.order?.id;
-                
                 if (paymentData.status === 'approved') {
-                    // Aquí podrías buscar la empresa por el preapprovalId o external_reference
-                    // y registrar el pago en el historial si no se hizo en el caso de 'preapproval'
-                    console.log(`💰 Pago aprobado: ${id} para suscripción/orden: ${preapprovalId}`);
+                    let empresaId, planId, isOneTime = false;
+
+                    // Intentar obtener datos de external_reference
+                    if (paymentData.external_reference) {
+                        const parts = paymentData.external_reference.split(':');
+                        empresaId = parts[0];
+                        planId = parts[1];
+                        isOneTime = parts[2] === 'onetime';
+                    }
+
+                    // Si no hay external_reference, buscar por metadata o suscripción
+                    if (!empresaId && paymentData.metadata) {
+                        empresaId = paymentData.metadata.empresa_id;
+                        planId = paymentData.metadata.plan_id;
+                        isOneTime = paymentData.metadata.type === 'onetime';
+                    }
+
+                    if (empresaId && planId) {
+                        console.log(`💰 Pago aprobado (${isOneTime ? 'Único' : 'Recurrente'}): ${id} para empresa ${empresaId}`);
+                        
+                        const plan = await Plan.findById(planId);
+                        if (!plan) throw new Error('Plan no encontrado en el pago');
+
+                        // Actualizar empresa
+                        const nextDate = new Date();
+                        nextDate.setDate(nextDate.getDate() + 30);
+
+                        await Empresa.findByIdAndUpdate(empresaId, {
+                            estadoPlan: 'activo',
+                            planId: planId,
+                            planActual: plan.slug,
+                            fechaPlanFinalizacion: nextDate,
+                            ultimoPagoExitoso: new Date(),
+                            proximoPago: nextDate
+                        });
+
+                        await this.recordPayment(empresaId, planId, paymentData, isOneTime ? 'onetime' : 'recurring');
+                    }
                 }
             }
             
             return { success: true };
         } catch (error) {
-            console.error('Error procesando webhook MP:', error);
+            console.error('❌ Error procesando webhook MP:', error);
             throw error;
         }
     }
@@ -146,39 +235,52 @@ class MercadoPagoService {
     /**
      * Registra el pago en el historial (Evita duplicados)
      */
-    async recordPayment(empresaId, planId, subscription) {
+    async recordPayment(empresaId, planId, mpData, type) {
         try {
-            // Verificar si ya existe un registro para esta suscripción (ID de MP)
-            // Para suscripciones, el ID de MP es único por ciclo de cobro o por la suscripción misma
-            // Nota: subscription.id es el ID de la PreApproval
+            const mpId = mpData.id.toString();
             
-            const existingPayment = await HistorialPago.findOne({ referenciaPago: subscription.id });
+            const existingPayment = await HistorialPago.findOne({ referenciaPago: mpId });
             if (existingPayment) {
-                console.log(`⚠️ El pago con referencia ${subscription.id} ya fue registrado.`);
+                console.log(`⚠️ El pago con referencia ${mpId} ya fue registrado.`);
                 return;
             }
 
             const periodoInicio = new Date();
             const periodoFin = new Date();
-            periodoFin.setMonth(periodoFin.getMonth() + 1);
+            periodoFin.setDate(periodoFin.getDate() + 30);
+
+            let monto = 0;
+            let moneda = 'ARS';
+
+            if (type === 'subscription') {
+                monto = mpData.auto_recurring?.transaction_amount || 0;
+                moneda = mpData.auto_recurring?.currency_id || 'ARS';
+            } else {
+                monto = mpData.transaction_amount || 0;
+                moneda = mpData.currency_id || 'ARS';
+            }
 
             const historial = new HistorialPago({
                 empresa: empresaId,
                 plan: planId,
-                monto: subscription.auto_recurring.transaction_amount,
-                moneda: subscription.auto_recurring.currency_id,
+                monto: monto,
+                moneda: moneda,
                 fechaPago: new Date(),
                 periodoInicio,
                 periodoFin,
-                metodoPago: 'mercadopago',
-                referenciaPago: subscription.id,
-                estado: 'completado'
+                metodoPago: `mercadopago_${type}`,
+                referenciaPago: mpId,
+                estado: 'completado',
+                detallesMP: {
+                    status: mpData.status,
+                    payment_type: mpData.payment_type_id || (type === 'subscription' ? 'recurring' : 'unknown')
+                }
             });
 
             await historial.save();
             console.log(`✅ Pago registrado exitosamente para la empresa ${empresaId}`);
         } catch (error) {
-            console.error('Error registrando pago en historial:', error);
+            console.error('❌ Error registrando pago en historial:', error);
         }
     }
 }

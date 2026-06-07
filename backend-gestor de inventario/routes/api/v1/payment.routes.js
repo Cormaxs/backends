@@ -4,8 +4,11 @@ import PaymentController from '../../../controllers/payment/payment_controller.j
 
 const router = Router();
 
-// Iniciar suscripción
+// Iniciar suscripción recurrente (Requiere Tarjeta)
 router.post('/subscribe', PaymentController.startSubscription);
+
+// Pago único (Soporta QR, Débito, Efectivo, Dinero en cuenta)
+router.post('/pay-once', PaymentController.createPreference);
 
 // Webhook de Mercado Pago (público)
 router.post('/webhook', PaymentController.webhook);
